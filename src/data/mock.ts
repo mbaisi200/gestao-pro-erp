@@ -1,4 +1,4 @@
-import { Tenant, Produto, Categoria, ContaPagar, ContaReceber, NotaFiscal, Venda, OrdemServico, Cliente, DashboardMetrics, PlanoAssinatura, Pedido } from '@/types';
+import { Tenant, Produto, Categoria, ContaPagar, ContaReceber, NotaFiscal, Venda, OrdemServico, Cliente, DashboardMetrics, PlanoAssinatura, Pedido, Fornecedor, Funcionario, PermissoesAcesso } from '@/types';
 
 export const mockTenant: Tenant = {
   id: 'tenant-001',
@@ -26,7 +26,11 @@ export const mockTenant: Tenant = {
     timezone: 'America/Sao_Paulo',
     nfSerie: 1,
     nfNumeroAtual: 1000
-  }
+  },
+  inscricaoEstadual: '123.456.789.123',
+  inscricaoMunicipal: '123456',
+  regimeTributario: 'simples',
+  cnae: '4751201'
 };
 
 export const mockCategorias: Categoria[] = [
@@ -34,6 +38,9 @@ export const mockCategorias: Categoria[] = [
   { id: 'cat-002', tenantId: 'tenant-001', nome: 'Acessórios', descricao: 'Acessórios diversos', cor: '#10b981', ativa: true },
   { id: 'cat-003', tenantId: 'tenant-001', nome: 'Informática', descricao: 'Produtos de informática', cor: '#f59e0b', ativa: true },
   { id: 'cat-004', tenantId: 'tenant-001', nome: 'Escritório', descricao: 'Materiais de escritório', cor: '#8b5cf6', ativa: true },
+  { id: 'cat-005', tenantId: 'tenant-001', nome: 'Serviços', descricao: 'Serviços prestados', cor: '#ec4899', ativa: true },
+  { id: 'cat-006', tenantId: 'tenant-001', nome: 'Periféricos', descricao: 'Periféricos e acessórios de informática', cor: '#06b6d4', ativa: true },
+  { id: 'cat-007', tenantId: 'tenant-001', nome: 'Redes', descricao: 'Equipamentos de rede', cor: '#84cc16', ativa: true },
 ];
 
 export const mockProdutos: Produto[] = [
@@ -45,22 +52,234 @@ export const mockProdutos: Produto[] = [
   { id: 'prod-006', tenantId: 'tenant-001', codigo: '006', codigoBarras: '7891234567895', nome: 'Headset Gamer HyperX', descricao: 'Headset 7.1', tipo: 'produto', categoriaId: 'cat-002', ncm: '8518.30.00', cst: '000', csosn: '102', cfop: '5102', icms: 18, pis: 0.65, cofins: 3, unidade: 'UN', precoCusto: 200, precoVenda: 350, estoqueAtual: 20, estoqueMinimo: 10, atalhoPDV: true, ativo: true, dataCriacao: new Date(), dataAtualizacao: new Date() },
   { id: 'prod-007', tenantId: 'tenant-001', codigo: '007', codigoBarras: '7891234567896', nome: 'Papel A4 Chamex 500folhas', descricao: 'Resma de papel A4', tipo: 'produto', categoriaId: 'cat-004', ncm: '4802.56.99', cst: '000', csosn: '102', cfop: '5102', icms: 18, pis: 0.65, cofins: 3, unidade: 'UN', precoCusto: 18, precoVenda: 28, estoqueAtual: 50, estoqueMinimo: 20, atalhoPDV: false, ativo: true, dataCriacao: new Date(), dataAtualizacao: new Date() },
   { id: 'prod-008', tenantId: 'tenant-001', codigo: '008', codigoBarras: '7891234567897', nome: 'Impressora HP Laser', descricao: 'Impressora laser monocromática', tipo: 'produto', categoriaId: 'cat-003', ncm: '8443.32.41', cst: '000', csosn: '102', cfop: '5102', icms: 18, pis: 0.65, cofins: 3, unidade: 'UN', precoCusto: 600, precoVenda: 950, estoqueAtual: 2, estoqueMinimo: 3, atalhoPDV: false, ativo: true, dataCriacao: new Date(), dataAtualizacao: new Date() },
-  { id: 'prod-009', tenantId: 'tenant-001', codigo: 'SVC-001', nome: 'Instalação de Software', descricao: 'Serviço de instalação e configuração', tipo: 'servico', categoriaId: 'cat-002', ncm: '00', cst: '000', csosn: '102', cfop: '5933', icms: 0, pis: 0.65, cofins: 3, unidade: 'HR', precoCusto: 0, precoVenda: 150, estoqueAtual: 0, estoqueMinimo: 0, atalhoPDV: true, ativo: true, dataCriacao: new Date(), dataAtualizacao: new Date() },
-  { id: 'prod-010', tenantId: 'tenant-001', codigo: 'SVC-002', nome: 'Suporte Técnico Remoto', descricao: 'Atendimento técnico remoto por hora', tipo: 'servico', categoriaId: 'cat-002', ncm: '00', cst: '000', csosn: '102', cfop: '5933', icms: 0, pis: 0.65, cofins: 3, unidade: 'HR', precoCusto: 0, precoVenda: 80, estoqueAtual: 0, estoqueMinimo: 0, atalhoPDV: true, ativo: true, dataCriacao: new Date(), dataAtualizacao: new Date() },
+  { id: 'prod-009', tenantId: 'tenant-001', codigo: 'SVC-001', nome: 'Instalação de Software', descricao: 'Serviço de instalação e configuração', tipo: 'servico', categoriaId: 'cat-005', ncm: '00', cst: '000', csosn: '102', cfop: '5933', icms: 0, pis: 0.65, cofins: 3, unidade: 'HR', precoCusto: 0, precoVenda: 150, estoqueAtual: 0, estoqueMinimo: 0, atalhoPDV: true, ativo: true, dataCriacao: new Date(), dataAtualizacao: new Date() },
+  { id: 'prod-010', tenantId: 'tenant-001', codigo: 'SVC-002', nome: 'Suporte Técnico Remoto', descricao: 'Atendimento técnico remoto por hora', tipo: 'servico', categoriaId: 'cat-005', ncm: '00', cst: '000', csosn: '102', cfop: '5933', icms: 0, pis: 0.65, cofins: 3, unidade: 'HR', precoCusto: 0, precoVenda: 80, estoqueAtual: 0, estoqueMinimo: 0, atalhoPDV: true, ativo: true, dataCriacao: new Date(), dataAtualizacao: new Date() },
+  { id: 'prod-011', tenantId: 'tenant-001', codigo: '009', codigoBarras: '7891234567898', nome: 'SSD Kingston 480GB', descricao: 'SSD SATA 480GB', tipo: 'produto', categoriaId: 'cat-003', ncm: '8471.70.10', cst: '000', csosn: '102', cfop: '5102', icms: 18, pis: 0.65, cofins: 3, unidade: 'UN', precoCusto: 180, precoVenda: 280, estoqueAtual: 35, estoqueMinimo: 15, atalhoPDV: true, ativo: true, dataCriacao: new Date(), dataAtualizacao: new Date() },
+  { id: 'prod-012', tenantId: 'tenant-001', codigo: '010', codigoBarras: '7891234567899', nome: 'Memória RAM 8GB DDR4', descricao: 'Memória RAM 8GB DDR4 2666MHz', tipo: 'produto', categoriaId: 'cat-003', ncm: '8542.32.31', cst: '000', csosn: '102', cfop: '5102', icms: 18, pis: 0.65, cofins: 3, unidade: 'UN', precoCusto: 120, precoVenda: 180, estoqueAtual: 2, estoqueMinimo: 10, atalhoPDV: true, ativo: true, dataCriacao: new Date(), dataAtualizacao: new Date() },
+  { id: 'prod-013', tenantId: 'tenant-001', codigo: '011', codigoBarras: '7891234567800', nome: 'Webcam Logitech C920', descricao: 'Webcam HD 1080p', tipo: 'produto', categoriaId: 'cat-006', ncm: '8525.80.19', cst: '000', csosn: '102', cfop: '5102', icms: 18, pis: 0.65, cofins: 3, unidade: 'UN', precoCusto: 280, precoVenda: 420, estoqueAtual: 15, estoqueMinimo: 5, atalhoPDV: false, ativo: true, dataCriacao: new Date(), dataAtualizacao: new Date() },
+  { id: 'prod-014', tenantId: 'tenant-001', codigo: '012', codigoBarras: '7891234567801', nome: 'Roteador TP-Link Archer C6', descricao: 'Roteador WiFi 6 Dual Band', tipo: 'produto', categoriaId: 'cat-007', ncm: '8517.62.51', cst: '000', csosn: '102', cfop: '5102', icms: 18, pis: 0.65, cofins: 3, unidade: 'UN', precoCusto: 180, precoVenda: 280, estoqueAtual: 8, estoqueMinimo: 5, atalhoPDV: false, ativo: true, dataCriacao: new Date(), dataAtualizacao: new Date() },
+  { id: 'prod-015', tenantId: 'tenant-001', codigo: '013', codigoBarras: '7891234567802', nome: 'Cabo Ethernet Cat6 5m', descricao: 'Cabo de rede Cat6 5 metros', tipo: 'produto', categoriaId: 'cat-007', ncm: '8544.42.90', cst: '000', csosn: '102', cfop: '5102', icms: 18, pis: 0.65, cofins: 3, unidade: 'UN', precoCusto: 15, precoVenda: 35, estoqueAtual: 45, estoqueMinimo: 20, atalhoPDV: true, ativo: true, dataCriacao: new Date(), dataAtualizacao: new Date() },
 ];
 
 export const mockClientes: Cliente[] = [
-  { id: 'cli-001', tenantId: 'tenant-001', nome: 'João Silva', cpfCnpj: '123.456.789-00', email: 'joao@email.com', telefone: '(11) 98765-4321', endereco: { logradouro: 'Rua A', numero: '100', complemento: '', bairro: 'Centro', cidade: 'São Paulo', estado: 'SP', cep: '01000-000' }, observacoes: '', ativo: true },
-  { id: 'cli-002', tenantId: 'tenant-001', nome: 'Maria Santos', cpfCnpj: '987.654.321-00', email: 'maria@email.com', telefone: '(11) 91234-5678', endereco: { logradouro: 'Av. B', numero: '200', complemento: 'Apto 10', bairro: 'Jardins', cidade: 'São Paulo', estado: 'SP', cep: '02000-000' }, observacoes: '', ativo: true },
-  { id: 'cli-003', tenantId: 'tenant-001', nome: 'Empresa ABC Ltda', cpfCnpj: '11.222.333/0001-44', email: 'contato@abc.com', telefone: '(11) 3456-7890', endereco: { logradouro: 'Rua C', numero: '300', complemento: '', bairro: 'Industrial', cidade: 'Campinas', estado: 'SP', cep: '13000-000' }, observacoes: 'Cliente VIP', ativo: true },
+  { id: 'cli-001', tenantId: 'tenant-001', nome: 'João Silva', cpfCnpj: '123.456.789-00', email: 'joao@email.com', telefone: '(11) 98765-4321', endereco: { logradouro: 'Rua A', numero: '100', complemento: '', bairro: 'Centro', cidade: 'São Paulo', estado: 'SP', cep: '01000-000' }, observacoes: '', ativo: true, tipoPessoa: 'fisica' },
+  { id: 'cli-002', tenantId: 'tenant-001', nome: 'Maria Santos', cpfCnpj: '987.654.321-00', email: 'maria@email.com', telefone: '(11) 91234-5678', endereco: { logradouro: 'Av. B', numero: '200', complemento: 'Apto 10', bairro: 'Jardins', cidade: 'São Paulo', estado: 'SP', cep: '02000-000' }, observacoes: '', ativo: true, tipoPessoa: 'fisica' },
+  { id: 'cli-003', tenantId: 'tenant-001', nome: 'Empresa ABC Ltda', cpfCnpj: '11.222.333/0001-44', email: 'contato@abc.com', telefone: '(11) 3456-7890', endereco: { logradouro: 'Rua C', numero: '300', complemento: '', bairro: 'Industrial', cidade: 'Campinas', estado: 'SP', cep: '13000-000' }, observacoes: 'Cliente VIP', ativo: true, tipoPessoa: 'juridica', inscricaoEstadual: '123.456.789.012' },
+  { id: 'cli-004', tenantId: 'tenant-001', nome: 'Carlos Oliveira', cpfCnpj: '456.789.123-00', email: 'carlos@email.com', telefone: '(11) 99876-5432', endereco: { logradouro: 'Rua D', numero: '400', complemento: '', bairro: 'Vila Nova', cidade: 'Guarulhos', estado: 'SP', cep: '07000-000' }, observacoes: '', ativo: true, tipoPessoa: 'fisica' },
+  { id: 'cli-005', tenantId: 'tenant-001', nome: 'Tech Solutions SA', cpfCnpj: '22.333.444/0001-55', email: 'compras@techsolutions.com', telefone: '(21) 99888-7777', endereco: { logradouro: 'Av. Rio Branco', numero: '500', complemento: 'Sala 201', bairro: 'Centro', cidade: 'Rio de Janeiro', estado: 'RJ', cep: '20040-000' }, observacoes: 'Cliente corporativo', ativo: true, tipoPessoa: 'juridica', inscricaoEstadual: '987.654.321.098' },
+  { id: 'cli-006', tenantId: 'tenant-001', nome: 'Ana Paula Ferreira', cpfCnpj: '789.123.456-00', email: 'ana.paula@email.com', telefone: '(11) 97654-3210', endereco: { logradouro: 'Rua E', numero: '600', complemento: '', bairro: 'Mooca', cidade: 'São Paulo', estado: 'SP', cep: '03000-000' }, observacoes: '', ativo: true, tipoPessoa: 'fisica' },
+  { id: 'cli-007', tenantId: 'tenant-001', nome: 'Comércio Express ME', cpfCnpj: '33.444.555/0001-66', email: 'financeiro@comercioexpress.com', telefone: '(31) 97777-6666', endereco: { logradouro: 'Rua da Bahia', numero: '200', complemento: '', bairro: 'Centro', cidade: 'Belo Horizonte', estado: 'MG', cep: '30160-000' }, observacoes: 'Prazo de pagamento: 30 dias', ativo: true, tipoPessoa: 'juridica', inscricaoEstadual: '456.789.123.456' },
+  { id: 'cli-008', tenantId: 'tenant-001', nome: 'Pedro Henrique Lima', cpfCnpj: '321.654.987-00', email: 'pedro.lima@email.com', telefone: '(11) 96543-2109', endereco: { logradouro: 'Av. F', numero: '700', complemento: 'Casa 2', bairro: 'Santana', cidade: 'São Paulo', estado: 'SP', cep: '02000-001' }, observacoes: '', ativo: true, tipoPessoa: 'fisica' },
+];
+
+export const mockFornecedores: Fornecedor[] = [
+  {
+    id: 'forn-001',
+    tenantId: 'tenant-001',
+    nome: 'Samsung Brasil',
+    razaoSocial: 'Samsung Eletrônica da Amazônia Ltda',
+    cnpj: '00.123.456/0001-00',
+    inscricaoEstadual: '123.456.789.012',
+    email: 'compras@samsung.com',
+    telefone: '(11) 3003-0000',
+    telefone2: '(11) 3003-0001',
+    endereco: { logradouro: 'Av. Industrial', numero: '1000', complemento: '', bairro: 'Industrial', cidade: 'Manaus', estado: 'AM', cep: '69000-000' },
+    contato: 'Roberto Alves',
+    cargo: 'Gerente de Vendas',
+    site: 'www.samsung.com.br',
+    observacoes: 'Fornecedor principal de eletrônicos',
+    categorias: ['cat-001'],
+    ativo: true,
+    dataCriacao: new Date('2024-01-15'),
+    dadosBancarios: { banco: 'Itaú', agencia: '0001', conta: '12345-6', tipoConta: 'corrente', pix: '00.123.456/0001-00', tipoPix: 'cnpj' }
+  },
+  {
+    id: 'forn-002',
+    tenantId: 'tenant-001',
+    nome: 'Dell Computadores',
+    razaoSocial: 'Dell Computadores do Brasil Ltda',
+    cnpj: '11.222.333/0001-44',
+    inscricaoEstadual: '234.567.890.123',
+    email: 'b2b@dell.com',
+    telefone: '(11) 3004-0000',
+    endereco: { logradouro: 'Av. Brigadeiro Faria Lima', numero: '2000', complemento: '10º andar', bairro: 'Itaim Bibi', cidade: 'São Paulo', estado: 'SP', cep: '04500-000' },
+    contato: 'Márcia Santos',
+    cargo: 'Representante Comercial',
+    site: 'www.dell.com.br',
+    categorias: ['cat-003'],
+    ativo: true,
+    dataCriacao: new Date('2024-02-01'),
+    dadosBancarios: { banco: 'Bradesco', agencia: '0102', conta: '54321-0', tipoConta: 'corrente', pix: '11.222.333/0001-44', tipoPix: 'cnpj' }
+  },
+  {
+    id: 'forn-003',
+    tenantId: 'tenant-001',
+    nome: 'Logitech Brasil',
+    razaoSocial: 'Logitech Brasil Importação e Comércio Ltda',
+    cnpj: '22.333.444/0001-55',
+    email: 'vendas@logitech.com.br',
+    telefone: '(11) 3005-0000',
+    endereco: { logradouro: 'Rua Augusta', numero: '1500', complemento: '', bairro: 'Consolação', cidade: 'São Paulo', estado: 'SP', cep: '01300-000' },
+    contato: 'Fernando Costa',
+    cargo: 'Vendedor',
+    categorias: ['cat-002', 'cat-006'],
+    ativo: true,
+    dataCriacao: new Date('2024-02-15'),
+    dadosBancarios: { banco: 'Banco do Brasil', agencia: '0001', conta: '98765-4', tipoConta: 'corrente' }
+  },
+  {
+    id: 'forn-004',
+    tenantId: 'tenant-001',
+    nome: 'HP Brasil',
+    razaoSocial: 'HP Indústria Brasileira de Eletrônicos Ltda',
+    cnpj: '33.444.555/0001-66',
+    inscricaoEstadual: '345.678.901.234',
+    email: 'canal.parceiros@hp.com',
+    telefone: '(11) 3006-0000',
+    endereco: { logradouro: 'Av. das Nações Unidas', numero: '3000', complemento: '', bairro: 'Pinheiros', cidade: 'São Paulo', estado: 'SP', cep: '05400-000' },
+    contato: 'Amanda Rodrigues',
+    cargo: 'Executiva de Contas',
+    site: 'www.hp.com.br',
+    categorias: ['cat-003'],
+    ativo: true,
+    dataCriacao: new Date('2024-03-01'),
+    dadosBancarios: { banco: 'Santander', agencia: '0203', conta: '11111-1', tipoConta: 'corrente', pix: 'financeiro@hp.com.br', tipoPix: 'email' }
+  },
+  {
+    id: 'forn-005',
+    tenantId: 'tenant-001',
+    nome: 'Kingston Technology',
+    razaoSocial: 'Kingston Technology do Brasil Ltda',
+    cnpj: '44.555.666/0001-77',
+    email: 'vendas@kingston.com.br',
+    telefone: '(11) 3007-0000',
+    endereco: { logradouro: 'Rua Oscar Freire', numero: '800', complemento: '', bairro: 'Jardins', cidade: 'São Paulo', estado: 'SP', cep: '01400-000' },
+    contato: 'Lucas Mendes',
+    cargo: 'Gerente Comercial',
+    categorias: ['cat-003'],
+    ativo: true,
+    dataCriacao: new Date('2024-03-15'),
+    dadosBancarios: { banco: 'Itaú', agencia: '0304', conta: '22222-2', tipoConta: 'corrente' }
+  },
+  {
+    id: 'forn-006',
+    tenantId: 'tenant-001',
+    nome: 'TP-Link Brasil',
+    razaoSocial: 'TP-Link Brasil Informática Ltda',
+    cnpj: '55.666.777/0001-88',
+    email: 'comercial@tp-link.com.br',
+    telefone: '(11) 3008-0000',
+    endereco: { logradouro: 'Av. Paulista', numero: '2000', complemento: 'Sala 501', bairro: 'Bela Vista', cidade: 'São Paulo', estado: 'SP', cep: '01300-001' },
+    contato: 'Ricardo Souza',
+    cargo: 'Representante',
+    site: 'www.tp-link.com.br',
+    categorias: ['cat-007'],
+    ativo: true,
+    dataCriacao: new Date('2024-04-01'),
+    dadosBancarios: { banco: 'Nubank', agencia: '0001', conta: '33333-3', tipoConta: 'corrente', pix: '55.666.777/0001-88', tipoPix: 'cnpj' }
+  },
+];
+
+export const mockFuncionarios: Funcionario[] = [
+  {
+    id: 'func-001',
+    tenantId: 'tenant-001',
+    nome: 'Carlos Eduardo Silva',
+    cpf: '123.456.789-00',
+    rg: '12.345.678-9',
+    email: 'carlos.silva@empresademo.com.br',
+    telefone: '(11) 98765-4321',
+    endereco: { logradouro: 'Rua dos Funcionários', numero: '100', complemento: '', bairro: 'Centro', cidade: 'São Paulo', estado: 'SP', cep: '01000-000' },
+    cargo: 'Técnico de Informática',
+    departamento: 'Suporte Técnico',
+    salario: 3500,
+    dataAdmissao: new Date('2023-03-15'),
+    dataNascimento: new Date('1990-05-20'),
+    permissoes: { dashboard: true, produtos: true, estoque: true, financeiro: false, faturamento: false, pdv: true, pedidos: true, operacional: true, parametros: false, admin: false, funcionarios: false, categorias: true, fornecedores: true, clientes: true, unidades: true, relatorios: true } as PermissoesAcesso,
+    senha: 'hash_da_senha',
+    ativo: true,
+    podeAcessarSistema: true,
+    dataCriacao: new Date('2023-03-15'),
+    dataAtualizacao: new Date(),
+    criadoPor: 'user-001'
+  },
+  {
+    id: 'func-002',
+    tenantId: 'tenant-001',
+    nome: 'Maria Fernanda Costa',
+    cpf: '987.654.321-00',
+    rg: '98.765.432-1',
+    email: 'maria.costa@empresademo.com.br',
+    telefone: '(11) 91234-5678',
+    endereco: { logradouro: 'Av. dos Trabalhadores', numero: '200', complemento: 'Apto 10', bairro: 'Vila Nova', cidade: 'São Paulo', estado: 'SP', cep: '02000-000' },
+    cargo: 'Vendedora',
+    departamento: 'Comercial',
+    salario: 2800,
+    dataAdmissao: new Date('2023-06-01'),
+    dataNascimento: new Date('1995-08-15'),
+    permissoes: { dashboard: true, produtos: true, estoque: false, financeiro: false, faturamento: false, pdv: true, pedidos: true, operacional: false, parametros: false, admin: false, funcionarios: false, categorias: false, fornecedores: false, clientes: true, unidades: false, relatorios: false } as PermissoesAcesso,
+    senha: 'hash_da_senha',
+    ativo: true,
+    podeAcessarSistema: true,
+    dataCriacao: new Date('2023-06-01'),
+    dataAtualizacao: new Date(),
+    criadoPor: 'user-001'
+  },
+  {
+    id: 'func-003',
+    tenantId: 'tenant-001',
+    nome: 'Pedro Henrique Oliveira',
+    cpf: '456.789.123-00',
+    rg: '45.678.912-3',
+    email: 'pedro.oliveira@empresademo.com.br',
+    telefone: '(11) 99876-5432',
+    endereco: { logradouro: 'Rua do Comércio', numero: '300', complemento: '', bairro: 'Industrial', cidade: 'Guarulhos', estado: 'SP', cep: '07000-000' },
+    cargo: 'Gerente Financeiro',
+    departamento: 'Financeiro',
+    salario: 5500,
+    dataAdmissao: new Date('2022-01-10'),
+    dataNascimento: new Date('1985-12-10'),
+    permissoes: { dashboard: true, produtos: true, estoque: true, financeiro: true, faturamento: true, pdv: true, pedidos: true, operacional: true, parametros: true, admin: false, funcionarios: true, categorias: true, fornecedores: true, clientes: true, unidades: true, relatorios: true } as PermissoesAcesso,
+    senha: 'hash_da_senha',
+    ativo: true,
+    podeAcessarSistema: true,
+    dataCriacao: new Date('2022-01-10'),
+    dataAtualizacao: new Date(),
+    criadoPor: 'user-001'
+  },
+  {
+    id: 'func-004',
+    tenantId: 'tenant-001',
+    nome: 'Ana Beatriz Santos',
+    cpf: '321.654.987-00',
+    rg: '32.165.498-7',
+    email: 'ana.santos@empresademo.com.br',
+    telefone: '(11) 97654-3210',
+    endereco: { logradouro: 'Av. Brasil', numero: '500', complemento: '', bairro: 'Mooca', cidade: 'São Paulo', estado: 'SP', cep: '03000-000' },
+    cargo: 'Assistente Administrativo',
+    departamento: 'Administrativo',
+    salario: 2500,
+    dataAdmissao: new Date('2024-01-15'),
+    dataNascimento: new Date('1998-03-25'),
+    permissoes: { dashboard: true, produtos: true, estoque: true, financeiro: false, faturamento: false, pdv: false, pedidos: true, operacional: false, parametros: false, admin: false, funcionarios: false, categorias: true, fornecedores: true, clientes: true, unidades: true, relatorios: false } as PermissoesAcesso,
+    senha: 'hash_da_senha',
+    ativo: true,
+    podeAcessarSistema: true,
+    dataCriacao: new Date('2024-01-15'),
+    dataAtualizacao: new Date(),
+    criadoPor: 'user-001'
+  },
 ];
 
 export const mockContasPagar: ContaPagar[] = [
-  { id: 'cp-001', tenantId: 'tenant-001', descricao: 'Fornecedor de Eletrônicos', valor: 15000, vencimento: new Date('2024-12-15'), status: 'pendente', categoria: 'Fornecedores', observacoes: 'Nota fiscal 12345', recorrente: false },
+  { id: 'cp-001', tenantId: 'tenant-001', descricao: 'Fornecedor de Eletrônicos', valor: 15000, vencimento: new Date('2024-12-15'), status: 'pendente', categoria: 'Fornecedores', observacoes: 'Nota fiscal 12345', recorrente: false, fornecedorId: 'forn-001' },
   { id: 'cp-002', tenantId: 'tenant-001', descricao: 'Aluguel do Escritório', valor: 3500, vencimento: new Date('2024-12-10'), status: 'pago', dataPagamento: new Date('2024-12-08'), categoria: 'Despesas Fixas', observacoes: '', recorrente: true },
   { id: 'cp-003', tenantId: 'tenant-001', descricao: 'Energia Elétrica', valor: 850, vencimento: new Date('2024-12-05'), status: 'vencido', categoria: 'Utilidades', observacoes: '', recorrente: true },
   { id: 'cp-004', tenantId: 'tenant-001', descricao: 'Internet e Telefone', valor: 450, vencimento: new Date('2024-12-20'), status: 'pendente', categoria: 'Utilidades', observacoes: '', recorrente: true },
   { id: 'cp-005', tenantId: 'tenant-001', descricao: 'Folha de Pagamento', valor: 25000, vencimento: new Date('2024-12-05'), status: 'pago', dataPagamento: new Date('2024-12-05'), categoria: 'Pessoal', observacoes: '', recorrente: true },
+  { id: 'cp-006', tenantId: 'tenant-001', descricao: 'Fornecedor Dell - Notebooks', valor: 19200, vencimento: new Date('2024-12-22'), status: 'pendente', categoria: 'Fornecedores', observacoes: 'NF 67890', recorrente: false, fornecedorId: 'forn-002' },
+  { id: 'cp-007', tenantId: 'tenant-001', descricao: 'ICMS - Novembro/2024', valor: 4500, vencimento: new Date('2024-12-15'), status: 'pendente', categoria: 'Impostos', observacoes: 'GARE 11/2024', recorrente: true },
+  { id: 'cp-008', tenantId: 'tenant-001', descricao: 'Serviço de Contabilidade', valor: 1200, vencimento: new Date('2024-12-10'), status: 'pago', dataPagamento: new Date('2024-12-09'), categoria: 'Serviços', observacoes: '', recorrente: true },
 ];
 
 export const mockContasReceber: ContaReceber[] = [
@@ -69,24 +288,35 @@ export const mockContasReceber: ContaReceber[] = [
   { id: 'cr-003', tenantId: 'tenant-001', descricao: 'Venda de Equipamentos', valor: 5600, vencimento: new Date('2024-12-01'), status: 'vencido', categoria: 'Vendas', clienteId: 'cli-002', observacoes: 'Ligar para cobrar' },
   { id: 'cr-004', tenantId: 'tenant-001', descricao: 'Consultoria Técnica', valor: 3000, vencimento: new Date('2024-12-25'), status: 'pendente', categoria: 'Serviços', clienteId: 'cli-003', observacoes: '' },
   { id: 'cr-005', tenantId: 'tenant-001', descricao: 'Venda Online', valor: 2100, vencimento: new Date('2024-12-18'), status: 'pendente', categoria: 'Vendas', observacoes: '' },
+  { id: 'cr-006', tenantId: 'tenant-001', descricao: 'Manutenção Mensal - Tech Solutions', valor: 4500, vencimento: new Date('2024-12-20'), status: 'pendente', categoria: 'Serviços', clienteId: 'cli-005', observacoes: 'Contrato mensal' },
+  { id: 'cr-007', tenantId: 'tenant-001', descricao: 'Venda de Monitores', valor: 3600, vencimento: new Date('2024-12-28'), status: 'pendente', categoria: 'Vendas', clienteId: 'cli-007', observacoes: '' },
 ];
 
 export const mockVendas: Venda[] = [
   { id: 'venda-001', tenantId: 'tenant-001', numero: 1001, clienteId: 'cli-001', itens: [{ produtoId: 'prod-001', quantidade: 1, precoUnitario: 1800, desconto: 0, total: 1800 }], subtotal: 1800, desconto: 0, total: 1800, formaPagamento: 'cartao_credito', status: 'concluida', dataVenda: new Date('2024-12-01'), observacoes: '' },
   { id: 'venda-002', tenantId: 'tenant-001', numero: 1002, clienteId: 'cli-003', itens: [{ produtoId: 'prod-002', quantidade: 2, precoUnitario: 3500, desconto: 200, total: 6800 }, { produtoId: 'prod-005', quantidade: 2, precoUnitario: 1200, desconto: 0, total: 2400 }], subtotal: 9400, desconto: 200, total: 9200, formaPagamento: 'boleto', status: 'concluida', dataVenda: new Date('2024-12-03'), observacoes: 'Desconto especial' },
   { id: 'venda-003', tenantId: 'tenant-001', numero: 1003, itens: [{ produtoId: 'prod-003', quantidade: 3, precoUnitario: 89, desconto: 0, total: 267 }, { produtoId: 'prod-004', quantidade: 1, precoUnitario: 280, desconto: 0, total: 280 }], subtotal: 547, desconto: 47, total: 500, formaPagamento: 'pix', status: 'concluida', dataVenda: new Date('2024-12-05'), observacoes: '' },
+  { id: 'venda-004', tenantId: 'tenant-001', numero: 1004, clienteId: 'cli-005', itens: [{ produtoId: 'prod-011', quantidade: 5, precoUnitario: 280, desconto: 0, total: 1400 }, { produtoId: 'prod-012', quantidade: 10, precoUnitario: 180, desconto: 0, total: 1800 }], subtotal: 3200, desconto: 200, total: 3000, formaPagamento: 'boleto', status: 'concluida', dataVenda: new Date('2024-12-08'), observacoes: '' },
+  { id: 'venda-005', tenantId: 'tenant-001', numero: 1005, clienteId: 'cli-002', itens: [{ produtoId: 'prod-013', quantidade: 1, precoUnitario: 420, desconto: 20, total: 400 }, { produtoId: 'prod-006', quantidade: 1, precoUnitario: 350, desconto: 0, total: 350 }], subtotal: 770, desconto: 20, total: 750, formaPagamento: 'cartao_debito', status: 'concluida', dataVenda: new Date('2024-12-10'), observacoes: '' },
 ];
 
 export const mockOrdensServico: OrdemServico[] = [
-  { id: 'os-001', tenantId: 'tenant-001', numero: 101, clienteId: 'cli-001', cliente: mockClientes[0], descricao: 'Manutenção de computador', servicos: [{ descricao: 'Formatação e instalação', quantidade: 1, valorUnitario: 150, total: 150 }], valorServicos: 150, valorProdutos: 0, valorTotal: 150, status: 'concluida', ativo: true, dataAbertura: new Date('2024-12-01'), dataConclusao: new Date('2024-12-02'), tecnico: 'Carlos', observacoes: '' },
-  { id: 'os-002', tenantId: 'tenant-001', numero: 102, clienteId: 'cli-002', cliente: mockClientes[1], descricao: 'Instalação de rede', servicos: [{ descricao: 'Cabeamento estruturado', quantidade: 1, valorUnitario: 500, total: 500 }, { descricao: 'Configuração de roteadores', quantidade: 2, valorUnitario: 100, total: 200 }], valorServicos: 700, valorProdutos: 0, valorTotal: 700, status: 'em_andamento', ativo: true, dataAbertura: new Date('2024-12-05'), dataPrevisao: new Date('2024-12-10'), tecnico: 'Pedro', observacoes: 'Aguardando material' },
+  { id: 'os-001', tenantId: 'tenant-001', numero: 101, clienteId: 'cli-001', cliente: mockClientes[0], descricao: 'Manutenção de computador', servicos: [{ descricao: 'Formatação e instalação', quantidade: 1, valorUnitario: 150, total: 150 }], valorServicos: 150, valorProdutos: 0, valorTotal: 150, status: 'concluida', ativo: true, dataAbertura: new Date('2024-12-01'), dataConclusao: new Date('2024-12-02'), tecnico: 'Carlos Eduardo Silva', observacoes: '' },
+  { id: 'os-002', tenantId: 'tenant-001', numero: 102, clienteId: 'cli-002', cliente: mockClientes[1], descricao: 'Instalação de rede', servicos: [{ descricao: 'Cabeamento estruturado', quantidade: 1, valorUnitario: 500, total: 500 }, { descricao: 'Configuração de roteadores', quantidade: 2, valorUnitario: 100, total: 200 }], valorServicos: 700, valorProdutos: 0, valorTotal: 700, status: 'em_andamento', ativo: true, dataAbertura: new Date('2024-12-05'), dataPrevisao: new Date('2024-12-15'), tecnico: 'Carlos Eduardo Silva', observacoes: 'Aguardando material' },
   { id: 'os-003', tenantId: 'tenant-001', numero: 103, clienteId: 'cli-003', cliente: mockClientes[2], descricao: 'Suporte técnico mensal', servicos: [{ descricao: 'Suporte remoto', quantidade: 10, valorUnitario: 50, total: 500 }], valorServicos: 500, valorProdutos: 0, valorTotal: 500, status: 'aberta', ativo: true, dataAbertura: new Date('2024-12-08'), observacoes: 'Contrato mensal' },
-  { id: 'os-004', tenantId: 'tenant-001', numero: 104, clienteId: 'cli-001', cliente: mockClientes[0], descricao: 'Configuração de servidor', servicos: [{ descricao: 'Instalação de servidor', quantidade: 1, valorUnitario: 800, total: 800 }, { descricao: 'Configuração de backup', quantidade: 1, valorUnitario: 200, total: 200 }], valorServicos: 1000, valorProdutos: 0, valorTotal: 1000, status: 'aprovada', ativo: true, dataAbertura: new Date('2024-12-09'), dataAprovacao: new Date('2024-12-10'), tecnico: 'Carlos', observacoes: 'Aguardando conversão para venda' },
+  { id: 'os-004', tenantId: 'tenant-001', numero: 104, clienteId: 'cli-001', cliente: mockClientes[0], descricao: 'Configuração de servidor', servicos: [{ descricao: 'Instalação de servidor', quantidade: 1, valorUnitario: 800, total: 800 }, { descricao: 'Configuração de backup', quantidade: 1, valorUnitario: 200, total: 200 }], valorServicos: 1000, valorProdutos: 0, valorTotal: 1000, status: 'aprovada', ativo: true, dataAbertura: new Date('2024-12-09'), dataAprovacao: new Date('2024-12-10'), tecnico: 'Carlos Eduardo Silva', observacoes: 'Aguardando conversão para venda' },
+  { id: 'os-005', tenantId: 'tenant-001', numero: 105, clienteId: 'cli-005', cliente: mockClientes[4], descricao: 'Upgrade de memória e SSD', servicos: [{ descricao: 'Instalação de hardware', quantidade: 5, valorUnitario: 80, total: 400 }], valorServicos: 400, valorProdutos: 0, valorTotal: 400, status: 'em_andamento', ativo: true, dataAbertura: new Date('2024-12-10'), dataPrevisao: new Date('2024-12-18'), tecnico: 'Carlos Eduardo Silva', observacoes: '5 máquinas para upgrade' },
 ];
 
 export const mockNotasFiscais: NotaFiscal[] = [
+  // Notas de Saída
   { id: 'nf-001', tenantId: 'tenant-001', numero: '1000', serie: '1', chave: '35241212345678000190550010000010001123456789', tipo: 'saida', modelo: 'NF-e', emitente: { nome: 'Empresa Demo Ltda', cnpj: '12.345.678/0001-90', ie: '123.456.789.123', endereco: mockTenant.endereco }, destinatario: { nome: 'Empresa ABC Ltda', cnpj: '11.222.333/0001-44', ie: '111.222.333.444', endereco: { logradouro: 'Rua C', numero: '300', complemento: '', bairro: 'Industrial', cidade: 'Campinas', estado: 'SP', cep: '13000-000' } }, valorTotal: 9200, valorProdutos: 9200, valorICMS: 1656, valorPIS: 60.72, valorCOFINS: 279.36, dataEmissao: new Date('2024-12-03'), xmlUrl: '', status: 'autorizada', produtos: [] },
   { id: 'nf-002', tenantId: 'tenant-001', numero: '1001', serie: '1', chave: '35241212345678000190550010000010011123456780', tipo: 'saida', modelo: 'NFC-e', emitente: { nome: 'Empresa Demo Ltda', cnpj: '12.345.678/0001-90', ie: '123.456.789.123', endereco: mockTenant.endereco }, destinatario: { nome: 'Consumidor Final', cnpj: '', ie: '', endereco: { logradouro: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '', cep: '' } }, valorTotal: 500, valorProdutos: 500, valorICMS: 90, valorPIS: 3.30, valorCOFINS: 15.18, dataEmissao: new Date('2024-12-05'), xmlUrl: '', status: 'autorizada', produtos: [] },
+  // Notas de Entrada
+  { id: 'nf-003', tenantId: 'tenant-001', numero: '54321', serie: '1', chave: '35241200123456000190550010000543211123456789', tipo: 'entrada', modelo: 'NF-e', emitente: { nome: 'Samsung Brasil', cnpj: '00.123.456/0001-00', ie: '123.456.789.012', endereco: { logradouro: 'Av. Industrial', numero: '1000', complemento: '', bairro: 'Industrial', cidade: 'Manaus', estado: 'AM', cep: '69000-000' } }, destinatario: { nome: 'Empresa Demo Ltda', cnpj: '12.345.678/0001-90', ie: '123.456.789.123', endereco: mockTenant.endereco }, valorTotal: 45000, valorProdutos: 45000, valorICMS: 8100, valorPIS: 297, valorCOFINS: 1365, dataEmissao: new Date('2024-12-01'), xmlUrl: '', status: 'autorizada', produtos: [{ codigo: 'SM-G990', nome: 'Smartphone Samsung Galaxy', ncm: '8517.12.31', cfop: '1102', cst: '000', unidade: 'UN', quantidade: 25, valorUnitario: 1800, valorTotal: 45000 }] },
+  { id: 'nf-004', tenantId: 'tenant-001', numero: '67890', serie: '1', chave: '35241211222333000190550010000678901123456789', tipo: 'entrada', modelo: 'NF-e', emitente: { nome: 'Dell Computadores', cnpj: '11.222.333/0001-44', ie: '234.567.890.123', endereco: { logradouro: 'Av. Brigadeiro Faria Lima', numero: '2000', complemento: '10º andar', bairro: 'Itaim Bibi', cidade: 'São Paulo', estado: 'SP', cep: '04500-000' } }, destinatario: { nome: 'Empresa Demo Ltda', cnpj: '12.345.678/0001-90', ie: '123.456.789.123', endereco: mockTenant.endereco }, valorTotal: 28000, valorProdutos: 28000, valorICMS: 5040, valorPIS: 182, valorCOFINS: 854, dataEmissao: new Date('2024-12-05'), xmlUrl: '', status: 'autorizada', produtos: [{ codigo: 'INS-15-3500', nome: 'Notebook Dell Inspiron 15', ncm: '8471.30.19', cfop: '1102', cst: '000', unidade: 'UN', quantidade: 8, valorUnitario: 3500, valorTotal: 28000 }] },
+  { id: 'nf-005', tenantId: 'tenant-001', numero: '11111', serie: '1', chave: '35241222333444000190550010000111111123456789', tipo: 'entrada', modelo: 'NF-e', emitente: { nome: 'Logitech Brasil', cnpj: '22.333.444/0001-55', ie: '', endereco: { logradouro: 'Rua Augusta', numero: '1500', complemento: '', bairro: 'Consolação', cidade: 'São Paulo', estado: 'SP', cep: '01300-000' } }, destinatario: { nome: 'Empresa Demo Ltda', cnpj: '12.345.678/0001-90', ie: '123.456.789.123', endereco: mockTenant.endereco }, valorTotal: 5200, valorProdutos: 5200, valorICMS: 936, valorPIS: 34.32, valorCOFINS: 158.08, dataEmissao: new Date('2024-12-08'), xmlUrl: '', status: 'autorizada', produtos: [{ codigo: 'LOG-MX3', nome: 'Mouse Logitech MX Master 3', ncm: '8473.30.11', cfop: '1102', cst: '000', unidade: 'UN', quantidade: 20, valorUnitario: 260, valorTotal: 5200 }] },
+  { id: 'nf-006', tenantId: 'tenant-001', numero: '22222', serie: '1', chave: '35241233444555000190550010000222221123456789', tipo: 'entrada', modelo: 'NF-e', emitente: { nome: 'Kingston Technology', cnpj: '44.555.666/0001-77', ie: '', endereco: { logradouro: 'Rua Oscar Freire', numero: '800', complemento: '', bairro: 'Jardins', cidade: 'São Paulo', estado: 'SP', cep: '01400-000' } }, destinatario: { nome: 'Empresa Demo Ltda', cnpj: '12.345.678/0001-90', ie: '123.456.789.123', endereco: mockTenant.endereco }, valorTotal: 12600, valorProdutos: 12600, valorICMS: 2268, valorPIS: 82.95, valorCOFINS: 382.44, dataEmissao: new Date('2024-12-10'), xmlUrl: '', status: 'pendente', produtos: [{ codigo: 'KIN-SSD480', nome: 'SSD Kingston 480GB', ncm: '8471.70.10', cfop: '1102', cst: '000', unidade: 'UN', quantidade: 45, valorUnitario: 280, valorTotal: 12600 }] },
 ];
 
 export const mockPedidos: Pedido[] = [
@@ -108,7 +338,7 @@ export const mockPedidos: Pedido[] = [
     condicaoPagamento: '30/60 dias',
     observacoes: 'Cliente solicita entrega no período da manhã',
     dataCriacao: new Date('2024-12-08'),
-    criadoPor: 'vendedor1'
+    criadoPor: 'func-002'
   },
   { 
     id: 'ped-002', 
@@ -128,7 +358,7 @@ export const mockPedidos: Pedido[] = [
     condicaoPagamento: 'À vista',
     observacoes: 'Pedido grande - verificar disponibilidade de estoque',
     dataCriacao: new Date('2024-12-07'),
-    criadoPor: 'vendedor2'
+    criadoPor: 'func-002'
   },
   { 
     id: 'ped-003', 
@@ -149,7 +379,7 @@ export const mockPedidos: Pedido[] = [
     observacoes: '',
     dataCriacao: new Date('2024-12-05'),
     dataAprovacao: new Date('2024-12-06'),
-    criadoPor: 'vendedor1'
+    criadoPor: 'func-002'
   },
   { 
     id: 'ped-004', 
@@ -166,7 +396,7 @@ export const mockPedidos: Pedido[] = [
     condicaoPagamento: 'Dinheiro',
     observacoes: 'Retira no local',
     dataCriacao: new Date('2024-12-09'),
-    criadoPor: 'vendedor1'
+    criadoPor: 'func-002'
   },
   { 
     id: 'ped-005', 
@@ -187,7 +417,27 @@ export const mockPedidos: Pedido[] = [
     dataCriacao: new Date('2024-12-01'),
     dataAprovacao: new Date('2024-12-02'),
     vendaId: 'venda-002',
-    criadoPor: 'vendedor2'
+    criadoPor: 'func-002'
+  },
+  { 
+    id: 'ped-006', 
+    tenantId: 'tenant-001', 
+    numero: 2006, 
+    clienteId: 'cli-005',
+    nomeCliente: 'Tech Solutions SA',
+    itens: [
+      { produtoId: 'prod-011', quantidade: 10, precoUnitario: 280, desconto: 0, total: 2800 },
+      { produtoId: 'prod-012', quantidade: 20, precoUnitario: 180, desconto: 200, total: 3400 }
+    ], 
+    subtotal: 6400, 
+    desconto: 200, 
+    total: 6200, 
+    status: 'pendente',
+    prazoEntrega: new Date('2024-12-22'),
+    condicaoPagamento: '30/60/90 dias',
+    observacoes: 'Cliente corporativo - verificar crédito',
+    dataCriacao: new Date('2024-12-10'),
+    criadoPor: 'func-002'
   },
 ];
 

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { Tenant, Produto, ContaPagar, ContaReceber, Venda, OrdemServico, NotaFiscal, Cliente, Pedido, ConfigBanco, ConfigImpressora, ParametrosTenant, Funcionario, PermissoesAcesso, Fornecedor, UnidadeMedida } from '@/types';
 import { Categoria, DashboardMetrics, PlanoAssinatura, User } from '@/types';
-import { mockProdutos, mockCategorias, mockContasPagar, mockContasReceber, mockVendas, mockOrdensServico, mockNotasFiscais, mockClientes, mockDashboardMetrics, mockTenantsAdmin, mockPlanos, mockPedidos } from '@/data/mock';
+import { mockProdutos, mockCategorias, mockContasPagar, mockContasReceber, mockVendas, mockOrdensServico, mockNotasFiscais, mockClientes, mockDashboardMetrics, mockTenantsAdmin, mockPlanos, mockPedidos, mockFornecedores, mockFuncionarios } from '@/data/mock';
 import { 
   getTenant, createTenant, 
   getProdutos, createProduto, updateProduto, deleteProduto,

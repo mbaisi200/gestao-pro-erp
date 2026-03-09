@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/table';
 import { useAppStore } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { NotaFiscal, ProdutoNotaFiscal, Fornecedor, Cliente, Categoria } from '@/types';
+import { NotaFiscal, ProdutoNotaFiscal, Fornecedor, Cliente } from '@/types';
 import {
   FileText,
   Upload,
@@ -54,8 +54,11 @@ import {
   Ban,
   Building2,
   UserPlus,
-  Package,
   Save,
+  Plus,
+  FilePlus,
+  Send,
+  Printer,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -153,8 +156,11 @@ export default function FaturamentoPage() {
     });
   }, [notasFiscais, searchTerm, statusFilter]);
 
-  const totalEntradas = notasFiscais.filter(n => n.tipo === 'entrada' && n.status === 'autorizada').reduce((acc, n) => acc + n.valorTotal, 0);
-  const totalSaidas = notasFiscais.filter(n => n.tipo === 'saida' && n.status === 'autorizada').reduce((acc, n) => acc + n.valorTotal, 0);
+  const notasEntrada = notasFiscais.filter(n => n.tipo === 'entrada');
+  const notasSaida = notasFiscais.filter(n => n.tipo === 'saida');
+  
+  const totalEntradas = notasEntrada.filter(n => n.status === 'autorizada').reduce((acc, n) => acc + n.valorTotal, 0);
+  const totalSaidas = notasSaida.filter(n => n.status === 'autorizada').reduce((acc, n) => acc + n.valorTotal, 0);
 
   const contagemStatus = useMemo(() => {
     const contagem: Record<string, number> = {};
@@ -313,7 +319,7 @@ export default function FaturamentoPage() {
         produtos: produtosExtraidos,
         numero: ide?.getElementsByTagName('nNF')[0]?.textContent || '',
         serie: ide?.getElementsByTagName('serie')[0]?.textContent || '',
-        chave: '', // Extrair do protNFe
+        chave: '',
         valorTotal: parseFloat(total?.getElementsByTagName('vNF')[0]?.textContent || '0'),
         valorProdutos: parseFloat(total?.getElementsByTagName('vProd')[0]?.textContent || '0'),
         dataEmissao: new Date(ide?.getElementsByTagName('dhEmi')[0]?.textContent || new Date()),
@@ -431,7 +437,7 @@ export default function FaturamentoPage() {
     if (!config) return <Badge>{status}</Badge>;
     const Icon = config.icon;
     return (
-      <Badge className={`${config.color} gap-1`}>
+      <Badge className={`${config.color} gap-1 text-xs`}>
         <Icon className="h-3 w-3" />
         {config.label}
       </Badge>
@@ -440,12 +446,12 @@ export default function FaturamentoPage() {
 
   return (
     <MainLayout breadcrumbs={[{ title: 'Admin' }, { title: 'Nota Fiscal de Entrada' }]}>
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Nota Fiscal de Entrada</h1>
-            <p className="text-muted-foreground">Gerencie notas fiscais de entrada e documentos fiscais</p>
+            <h1 className="text-2xl font-bold">Nota Fiscal de Entrada</h1>
+            <p className="text-sm text-muted-foreground">Gerencie notas fiscais de entrada e documentos fiscais</p>
           </div>
           <div className="flex gap-2">
             <input type="file" accept=".xml" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
@@ -460,21 +466,19 @@ export default function FaturamentoPage() {
           </div>
         </div>
 
-        {/* Alertas de Status */}
+        {/* Alertas de Status - Compacto */}
         {(contagemStatus['rejeitada'] > 0 || contagemStatus['denegada'] > 0) && (
           <Card className="border-red-200 bg-red-50">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
-                  <AlertTriangle className="h-6 w-6 text-red-600" />
-                </div>
+            <CardContent className="py-3">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
                 <div className="flex-1">
-                  <p className="font-semibold text-red-800">Atenção: Notas com problemas</p>
-                  <p className="text-sm text-red-700">
+                  <span className="font-medium text-red-800 text-sm">Atenção: </span>
+                  <span className="text-sm text-red-700">
                     {contagemStatus['rejeitada'] > 0 && `${contagemStatus['rejeitada']} rejeitada(s)`}
                     {contagemStatus['rejeitada'] > 0 && contagemStatus['denegada'] > 0 && ' • '}
                     {contagemStatus['denegada'] > 0 && `${contagemStatus['denegada']} denegada(s)`}
-                  </p>
+                  </span>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => setStatusFilter('rejeitada')}>
                   Ver problemas
@@ -484,72 +488,71 @@ export default function FaturamentoPage() {
           </Card>
         )}
 
-        {/* Stats */}
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                  <FileText className="h-6 w-6 text-blue-600" />
+        {/* Stats - Cards Compactos */}
+        <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+          <Card className="p-0">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <FileText className="h-4 w-4 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total de Notas</p>
-                  <p className="text-2xl font-bold">{notasFiscais.length}</p>
+                  <p className="text-xs text-muted-foreground">Total Notas</p>
+                  <p className="text-lg font-bold">{notasFiscais.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                  <CheckCircle className="h-6 w-6 text-green-600" />
+          <Card className="p-0">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-green-100 flex items-center justify-center">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Autorizadas</p>
-                  <p className="text-2xl font-bold">{contagemStatus['autorizada'] || 0}</p>
+                  <p className="text-xs text-muted-foreground">Autorizadas</p>
+                  <p className="text-lg font-bold">{contagemStatus['autorizada'] || 0}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center">
-                  <Download className="h-6 w-6 text-orange-600" />
+          <Card className="p-0">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-orange-100 flex items-center justify-center">
+                  <Download className="h-4 w-4 text-orange-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Entradas</p>
-                  <p className="text-2xl font-bold">R$ {totalEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                  <p className="text-xs text-muted-foreground">Total Entradas</p>
+                  <p className="text-lg font-bold">R$ {totalEntradas.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="h-12 w-12 rounded-full bg-violet-100 flex items-center justify-center">
-                  <Upload className="h-6 w-6 text-violet-600" />
+          <Card className="p-0">
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-violet-100 flex items-center justify-center">
+                  <Upload className="h-4 w-4 text-violet-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Saídas</p>
-                  <p className="text-2xl font-bold">R$ {totalSaidas.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                  <p className="text-xs text-muted-foreground">Total Saídas</p>
+                  <p className="text-lg font-bold">R$ {totalSaidas.toLocaleString('pt-BR', { minimumFractionDigits: 0 })}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Status SEFAZ */}
+        {/* Status SEFAZ - Compacto */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Receipt className="h-5 w-5" />
+          <CardHeader className="py-3 px-4">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Receipt className="h-4 w-4" />
               Status SEFAZ
             </CardTitle>
-            <CardDescription>Resumo dos status das notas fiscais</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="py-2 px-4">
             <div className="flex flex-wrap gap-2">
               {Object.entries(contagemStatus).map(([status, count]) => {
                 const config = statusSEFAZ[status];
@@ -561,16 +564,16 @@ export default function FaturamentoPage() {
                     variant={statusFilter === status ? 'default' : 'outline'}
                     size="sm"
                     onClick={() => setStatusFilter(statusFilter === status ? 'todos' : status)}
-                    className="gap-2"
+                    className="h-7 text-xs gap-1"
                   >
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-3 w-3" />
                     {config.label}
-                    <Badge variant="secondary" className="ml-1">{count}</Badge>
+                    <Badge variant="secondary" className="ml-1 h-4 text-xs">{count}</Badge>
                   </Button>
                 );
               })}
               {statusFilter !== 'todos' && (
-                <Button variant="ghost" size="sm" onClick={() => setStatusFilter('todos')}>
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setStatusFilter('todos')}>
                   Limpar filtro
                 </Button>
               )}
@@ -578,9 +581,20 @@ export default function FaturamentoPage() {
           </CardContent>
         </Card>
 
-        {/* Search */}
-        <Card>
-          <CardContent className="pt-6">
+        {/* Tabs para separar Entrada e Saída */}
+        <Tabs defaultValue="entrada" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-2 max-w-md">
+            <TabsTrigger value="entrada" className="text-sm">
+              NF-e de Entrada ({notasEntrada.length})
+            </TabsTrigger>
+            <TabsTrigger value="saida" className="text-sm">
+              NF-e de Saída ({notasSaida.length})
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Tab Entrada */}
+          <TabsContent value="entrada" className="space-y-4">
+            {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -590,88 +604,134 @@ export default function FaturamentoPage() {
                 className="pl-10"
               />
             </div>
-          </CardContent>
-        </Card>
 
-        {/* Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Notas Fiscais</CardTitle>
-            <CardDescription>{filteredNotas.length} nota(s) encontrada(s)</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {filteredNotas.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p>Nenhuma nota fiscal encontrada</p>
-                <p className="text-sm">Importe um arquivo XML para adicionar</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Número/Série</TableHead>
-                      <TableHead>Tipo</TableHead>
-                      <TableHead>Modelo</TableHead>
-                      <TableHead>Emitente</TableHead>
-                      <TableHead>Destinatário</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                      <TableHead>Data</TableHead>
-                      <TableHead>Status SEFAZ</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredNotas.map((nota) => (
-                      <TableRow key={nota.id} className={nota.status === 'rejeitada' || nota.status === 'denegada' ? 'bg-red-50' : ''}>
-                        <TableCell className="font-mono">{nota.numero}/{nota.serie}</TableCell>
-                        <TableCell>
-                          <Badge variant={nota.tipo === 'entrada' ? 'default' : 'secondary'}>
-                            {nota.tipo === 'entrada' ? 'Entrada' : 'Saída'}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{nota.modelo}</TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{nota.emitente.nome}</p>
-                            <p className="text-xs text-muted-foreground">{nota.emitente.cnpj}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{nota.destinatario.nome}</p>
-                            {nota.destinatario.cnpj && (
-                              <p className="text-xs text-muted-foreground">{nota.destinatario.cnpj}</p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right font-semibold">
-                          R$ {nota.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </TableCell>
-                        <TableCell>{new Date(nota.dataEmissao).toLocaleDateString('pt-BR')}</TableCell>
-                        <TableCell>{getStatusBadge(nota.status)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button size="sm" variant="ghost" onClick={() => { setSelectedNf(nota); setDialogOpen(true); }}>
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => copiarChave(nota.chave)} title="Copiar chave">
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => consultarStatusSEFAZ(nota)} title="Consultar SEFAZ">
-                              <RefreshCw className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            {/* Table */}
+            <Card>
+              <CardContent className="p-0">
+                {filteredNotas.filter(n => n.tipo === 'entrada').length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Nenhuma nota fiscal de entrada encontrada</p>
+                    <p className="text-xs">Importe um arquivo XML para adicionar</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="text-xs">Número/Série</TableHead>
+                          <TableHead className="text-xs">Modelo</TableHead>
+                          <TableHead className="text-xs">Emitente</TableHead>
+                          <TableHead className="text-xs">Destinatário</TableHead>
+                          <TableHead className="text-xs text-right">Valor</TableHead>
+                          <TableHead className="text-xs">Data</TableHead>
+                          <TableHead className="text-xs">Status</TableHead>
+                          <TableHead className="text-xs text-right">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredNotas.filter(n => n.tipo === 'entrada').map((nota) => (
+                          <TableRow key={nota.id} className={nota.status === 'rejeitada' || nota.status === 'denegada' ? 'bg-red-50' : ''}>
+                            <TableCell className="font-mono text-sm">{nota.numero}/{nota.serie}</TableCell>
+                            <TableCell className="text-sm">{nota.modelo}</TableCell>
+                            <TableCell>
+                              <p className="font-medium text-sm">{nota.emitente.nome}</p>
+                              <p className="text-xs text-muted-foreground">{nota.emitente.cnpj}</p>
+                            </TableCell>
+                            <TableCell>
+                              <p className="font-medium text-sm">{nota.destinatario.nome}</p>
+                              {nota.destinatario.cnpj && (
+                                <p className="text-xs text-muted-foreground">{nota.destinatario.cnpj}</p>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-sm">
+                              R$ {nota.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell className="text-sm">{new Date(nota.dataEmissao).toLocaleDateString('pt-BR')}</TableCell>
+                            <TableCell>{getStatusBadge(nota.status)}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setSelectedNf(nota); setDialogOpen(true); }}>
+                                  <Eye className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => copiarChave(nota.chave)} title="Copiar chave">
+                                  <Copy className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => consultarStatusSEFAZ(nota)} title="Consultar SEFAZ">
+                                  <RefreshCw className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Tab Saída */}
+          <TabsContent value="saida" className="space-y-4">
+            <Card>
+              <CardContent className="p-0">
+                {notasSaida.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <FileText className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Nenhuma nota fiscal de saída encontrada</p>
+                    <p className="text-xs">As notas de saída são geradas automaticamente nas vendas</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="text-xs">Número/Série</TableHead>
+                          <TableHead className="text-xs">Modelo</TableHead>
+                          <TableHead className="text-xs">Destinatário</TableHead>
+                          <TableHead className="text-xs text-right">Valor</TableHead>
+                          <TableHead className="text-xs">Data</TableHead>
+                          <TableHead className="text-xs">Status</TableHead>
+                          <TableHead className="text-xs text-right">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {notasSaida.map((nota) => (
+                          <TableRow key={nota.id}>
+                            <TableCell className="font-mono text-sm">{nota.numero}/{nota.serie}</TableCell>
+                            <TableCell className="text-sm">{nota.modelo}</TableCell>
+                            <TableCell>
+                              <p className="font-medium text-sm">{nota.destinatario.nome}</p>
+                              {nota.destinatario.cnpj && (
+                                <p className="text-xs text-muted-foreground">{nota.destinatario.cnpj}</p>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-sm">
+                              R$ {nota.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell className="text-sm">{new Date(nota.dataEmissao).toLocaleDateString('pt-BR')}</TableCell>
+                            <TableCell>{getStatusBadge(nota.status)}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1">
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => { setSelectedNf(nota); setDialogOpen(true); }}>
+                                  <Eye className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => copiarChave(nota.chave)}>
+                                  <Copy className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Dialog Detalhes */}
@@ -683,8 +743,8 @@ export default function FaturamentoPage() {
           </DialogHeader>
           {selectedNf && (
             <div className="space-y-4">
-              <div className={`p-4 rounded-lg ${selectedNf.status === 'autorizada' ? 'bg-green-50 border border-green-200' : selectedNf.status === 'rejeitada' || selectedNf.status === 'denegada' ? 'bg-red-50 border border-red-200' : 'bg-yellow-50 border border-yellow-200'}`}>
-                <div className="flex items-center gap-3">
+              <div className={`p-3 rounded-lg ${selectedNf.status === 'autorizada' ? 'bg-green-50 border border-green-200' : selectedNf.status === 'rejeitada' || selectedNf.status === 'denegada' ? 'bg-red-50 border border-red-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+                <div className="flex items-center gap-2">
                   {getStatusBadge(selectedNf.status)}
                   <span className="text-sm">{statusSEFAZ[selectedNf.status]?.description}</span>
                 </div>
@@ -746,11 +806,11 @@ export default function FaturamentoPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Código</TableHead>
-                          <TableHead>Descrição</TableHead>
-                          <TableHead>NCM</TableHead>
-                          <TableHead className="text-right">Qtd</TableHead>
-                          <TableHead className="text-right">Total</TableHead>
+                          <TableHead className="text-xs">Código</TableHead>
+                          <TableHead className="text-xs">Descrição</TableHead>
+                          <TableHead className="text-xs">NCM</TableHead>
+                          <TableHead className="text-xs text-right">Qtd</TableHead>
+                          <TableHead className="text-xs text-right">Total</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -782,14 +842,14 @@ export default function FaturamentoPage() {
               Confirmar Importação XML
             </DialogTitle>
             <DialogDescription>
-              Revise os dados antes de confirmar a importação. Você pode editar informações do fornecedor e cliente.
+              Revise os dados antes de confirmar a importação.
             </DialogDescription>
           </DialogHeader>
           
           {dadosImportacao && (
-            <div className="space-y-6">
+            <div className="space-y-4">
               {/* Dados da Nota */}
-              <div className="grid grid-cols-3 gap-4 p-4 bg-blue-50 rounded-lg">
+              <div className="grid grid-cols-3 gap-4 p-3 bg-blue-50 rounded-lg">
                 <div>
                   <p className="text-xs text-muted-foreground">Número/Série</p>
                   <p className="font-mono font-bold">{dadosImportacao.numero}/{dadosImportacao.serie}</p>
@@ -813,47 +873,28 @@ export default function FaturamentoPage() {
                     <Building2 className="h-4 w-4" />
                     Fornecedor (Emitente)
                     {fornecedorExiste ? (
-                      <Badge className="bg-green-500">Já cadastrado</Badge>
+                      <Badge className="bg-green-500 text-xs">Cadastrado</Badge>
                     ) : (
-                      <Badge className="bg-orange-500">Novo - será cadastrado</Badge>
+                      <Badge className="bg-orange-500 text-xs">Novo</Badge>
                     )}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-2">
                   {!fornecedorExiste && (
-                    <>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-xs">Nome</Label>
-                          <Input
-                            value={novoFornecedor.nome || ''}
-                            onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome: e.target.value })}
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">CNPJ</Label>
-                          <Input value={novoFornecedor.cnpj || ''} disabled className="bg-gray-50" />
-                        </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs">Nome</Label>
+                        <Input
+                          value={novoFornecedor.nome || ''}
+                          onChange={(e) => setNovoFornecedor({ ...novoFornecedor, nome: e.target.value })}
+                          className="h-8"
+                        />
                       </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-xs">Inscrição Estadual</Label>
-                          <Input
-                            value={novoFornecedor.inscricaoEstadual || ''}
-                            onChange={(e) => setNovoFornecedor({ ...novoFornecedor, inscricaoEstadual: e.target.value })}
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Email</Label>
-                          <Input
-                            type="email"
-                            value={novoFornecedor.email || ''}
-                            onChange={(e) => setNovoFornecedor({ ...novoFornecedor, email: e.target.value })}
-                            placeholder="email@fornecedor.com"
-                          />
-                        </div>
+                      <div>
+                        <Label className="text-xs">CNPJ</Label>
+                        <Input value={novoFornecedor.cnpj || ''} disabled className="h-8 bg-gray-50" />
                       </div>
-                    </>
+                    </div>
                   )}
                   {fornecedorExiste && (
                     <div className="text-sm">
@@ -864,103 +905,38 @@ export default function FaturamentoPage() {
                 </CardContent>
               </Card>
 
-              {/* Cliente/Destinatário */}
-              <Card className={clienteExiste ? 'border-green-200' : 'border-orange-200'}>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <UserPlus className="h-4 w-4" />
-                    Cliente (Destinatário)
-                    {clienteExiste ? (
-                      <Badge className="bg-green-500">Já cadastrado</Badge>
-                    ) : (
-                      <Badge className="bg-orange-500">Novo - será cadastrado</Badge>
-                    )}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {!clienteExiste && dadosImportacao.destinatario.cnpj && (
-                    <>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-xs">Nome</Label>
-                          <Input
-                            value={novoCliente.nome || ''}
-                            onChange={(e) => setNovoCliente({ ...novoCliente, nome: e.target.value })}
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">CPF/CNPJ</Label>
-                          <Input value={novoCliente.cpfCnpj || ''} disabled className="bg-gray-50" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label className="text-xs">Inscrição Estadual</Label>
-                          <Input
-                            value={novoCliente.inscricaoEstadual || ''}
-                            onChange={(e) => setNovoCliente({ ...novoCliente, inscricaoEstadual: e.target.value })}
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Email</Label>
-                          <Input
-                            type="email"
-                            value={novoCliente.email || ''}
-                            onChange={(e) => setNovoCliente({ ...novoCliente, email: e.target.value })}
-                            placeholder="email@cliente.com"
-                          />
-                        </div>
-                      </div>
-                    </>
-                  )}
-                  {clienteExiste && (
-                    <div className="text-sm">
-                      <p className="font-medium">{dadosImportacao.destinatario.nome}</p>
-                      <p className="text-muted-foreground">CNPJ: {dadosImportacao.destinatario.cnpj || 'Não informado'}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
               {/* Produtos */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Package className="h-4 w-4" />
-                    Produtos ({dadosImportacao.produtos.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="max-h-60 overflow-y-auto border rounded-lg">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Código</TableHead>
-                          <TableHead>Descrição</TableHead>
-                          <TableHead>NCM</TableHead>
-                          <TableHead>CFOP</TableHead>
-                          <TableHead className="text-right">Qtd</TableHead>
-                          <TableHead className="text-right">Unit.</TableHead>
-                          <TableHead className="text-right">Total</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {dadosImportacao.produtos.map((prod, idx) => (
-                          <TableRow key={idx}>
-                            <TableCell className="font-mono text-xs">{prod.codigo}</TableCell>
-                            <TableCell className="text-sm">{prod.nome}</TableCell>
-                            <TableCell className="font-mono text-xs">{prod.ncm}</TableCell>
-                            <TableCell className="font-mono text-xs">{prod.cfop}</TableCell>
-                            <TableCell className="text-right">{prod.quantidade}</TableCell>
-                            <TableCell className="text-right">R$ {prod.valorUnitario.toFixed(2)}</TableCell>
-                            <TableCell className="text-right font-medium">R$ {prod.valorTotal.toFixed(2)}</TableCell>
+              {dadosImportacao.produtos.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Produtos ({dadosImportacao.produtos.length})</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="max-h-40 overflow-y-auto border rounded-lg">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="text-xs">Código</TableHead>
+                            <TableHead className="text-xs">Descrição</TableHead>
+                            <TableHead className="text-xs">Qtd</TableHead>
+                            <TableHead className="text-xs text-right">Total</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
+                        </TableHeader>
+                        <TableBody>
+                          {dadosImportacao.produtos.map((prod, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell className="font-mono text-xs">{prod.codigo}</TableCell>
+                              <TableCell className="text-sm">{prod.nome}</TableCell>
+                              <TableCell className="text-sm">{prod.quantidade}</TableCell>
+                              <TableCell className="text-right text-sm">R$ {prod.valorTotal.toFixed(2)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
           
@@ -968,15 +944,15 @@ export default function FaturamentoPage() {
             <Button variant="outline" onClick={() => setDialogImportacaoOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleConfirmarImportacao} disabled={savingImportacao} className="gap-2">
+            <Button onClick={handleConfirmarImportacao} disabled={savingImportacao}>
               {savingImportacao ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Salvando...
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Importando...
                 </>
               ) : (
                 <>
-                  <Save className="h-4 w-4" />
+                  <Save className="mr-2 h-4 w-4" />
                   Confirmar Importação
                 </>
               )}
