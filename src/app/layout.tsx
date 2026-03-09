@@ -14,24 +14,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Z.ai Code Scaffold - AI-Powered Development",
-  description: "Modern Next.js scaffold optimized for AI-powered development with Z.ai. Built with TypeScript, Tailwind CSS, and shadcn/ui.",
-  keywords: ["Z.ai", "Next.js", "TypeScript", "Tailwind CSS", "shadcn/ui", "AI development", "React"],
-  authors: [{ name: "Z.ai Team" }],
+  title: "GestãoPro ERP - Sistema ERP SaaS para o Brasil",
+  description: "Sistema ERP SaaS multi-tenant para o mercado brasileiro. Gestão de produtos, estoque, financeiro, faturamento, PDV e muito mais.",
+  keywords: ["ERP", "Gestão", "Brasil", "NF-e", "NFC-e", "PDV", "Estoque", "Financeiro", "SaaS"],
+  authors: [{ name: "GestãoPro Team" }],
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
   openGraph: {
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
-    url: "https://chat.z.ai",
-    siteName: "Z.ai",
+    title: "GestãoPro ERP",
+    description: "Sistema ERP SaaS para o mercado brasileiro",
+    url: "https://gestaopro.com.br",
+    siteName: "GestãoPro",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
+    title: "GestãoPro ERP",
+    description: "Sistema ERP SaaS para o mercado brasileiro",
   },
 };
 
