@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,6 +52,8 @@ import {
   Trash2,
   Package,
   PackagePlus,
+  ArrowUpCircle,
+  ArrowDownCircle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -319,9 +321,13 @@ export default function FaturamentoPage() {
       await addNotaFiscal(nota);
       toast({ title: 'XML importado!', description: `Nota fiscal ${nota.numero} foi importada.` });
       
-      // Perguntar sobre entrada no estoque
+      // Fechar dialog de importação e abrir dialog de entrada no estoque
       setDialogImportacaoOpen(false);
-      setDialogEstoqueOpen(true);
+      
+      // Sempre mostrar o diálogo de entrada no estoque após importação
+      if (dadosImportacao.produtos.length > 0) {
+        setDialogEstoqueOpen(true);
+      }
       
     } catch (error) {
       console.error('Erro ao confirmar importação:', error);
@@ -341,17 +347,30 @@ export default function FaturamentoPage() {
         const produtoExistente = produtos.find(p => p.codigo === prod.codigo);
         if (produtoExistente) {
           movimentarEstoque(produtoExistente.id, 'entrada', prod.quantidade, `NFE ${dadosImportacao.numero}`);
+          count++;
         } else {
-          toast({ title: `Produto ${prod.codigo} não cadastrado`, description: 'Cadastre o produto primeiro.' });
+          toast({ 
+            title: `Produto ${prod.codigo} não cadastrado`, 
+            description: 'Cadastre o produto primeiro no menu Produtos.',
+            variant: 'destructive'
+          });
         }
-        count++;
       }
     });
     
-    toast({ title: 'Entrada no estoque', description: `${count} produto(s) deram entrada no estoque.` });
+    if (count > 0) {
+      toast({ title: 'Entrada no estoque', description: `${count} produto(s) deram entrada no estoque.` });
+    }
     setDialogEstoqueOpen(false);
     setDadosImportacao(null);
     setProdutosEntrada({});
+  };
+
+  const handlePularEntrada = () => {
+    setDialogEstoqueOpen(false);
+    setDadosImportacao(null);
+    setProdutosEntrada({});
+    toast({ title: 'Importação concluída', description: 'Você pode dar entrada no estoque posteriormente.' });
   };
 
   const handleDelete = async (id: string) => {
@@ -379,186 +398,271 @@ export default function FaturamentoPage() {
   };
 
   return (
-    <MainLayout breadcrumbs={[{ title: 'Nota Fiscal de Entrada' }]}>
-      <div className="space-y-3">
+    <MainLayout breadcrumbs={[{ title: 'Nota Fiscal' }]}>
+      <div className="space-y-4">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
           <div>
-            <h1 className="text-xl font-bold">Nota Fiscal</h1>
-            <p className="text-xs text-muted-foreground">Gerencie notas fiscais de entrada e saída</p>
+            <h1 className="text-2xl font-bold">Nota Fiscal</h1>
+            <p className="text-sm text-muted-foreground">Gerencie notas fiscais de entrada e saída</p>
           </div>
           <div className="flex gap-2">
             <input type="file" accept=".xml" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-            <Button size="sm" onClick={() => fileInputRef.current?.click()} disabled={importing}>
-              {importing ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Upload className="mr-1 h-4 w-4" />}
+            <Button onClick={() => fileInputRef.current?.click()} disabled={importing}>
+              {importing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
               Importar XML
             </Button>
           </div>
         </div>
 
-        {/* Stats Mini */}
-        <div className="grid gap-2 grid-cols-4">
-          {[{ label: 'Total', value: notasFiscais.length, icon: FileText, color: 'blue' },
-            { label: 'Autorizadas', value: contagemStatus['autorizada'] || 0, icon: CheckCircle, color: 'green' },
-            { label: 'Entradas', value: `R$ ${(totalEntradas/1000).toFixed(0)}k`, icon: Download, color: 'orange' },
-            { label: 'Saídas', value: `R$ ${(totalSaidas/1000).toFixed(0)}k`, icon: Upload, color: 'violet' }
-          ].map((s, i) => (
-            <div key={i} className={`bg-${s.color}-50 border border-${s.color}-100 rounded p-2 flex items-center gap-2`}>
-              <s.icon className={`h-4 w-4 text-${s.color}-600`} />
-              <div>
-                <p className="text-[10px] text-muted-foreground">{s.label}</p>
-                <p className="text-sm font-bold">{s.value}</p>
+        {/* Stats Cards */}
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                  <FileText className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total NF-e</p>
+                  <p className="text-xl font-bold">{notasFiscais.length}</p>
+                </div>
               </div>
-            </div>
-          ))}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Autorizadas</p>
+                  <p className="text-xl font-bold">{contagemStatus['autorizada'] || 0}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-full bg-orange-100 flex items-center justify-center">
+                  <Download className="h-5 w-5 text-orange-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Entradas</p>
+                  <p className="text-xl font-bold">R$ {(totalEntradas/1000).toFixed(1)}k</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-10 rounded-full bg-violet-100 flex items-center justify-center">
+                  <Upload className="h-5 w-5 text-violet-600" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Saídas</p>
+                  <p className="text-xl font-bold">R$ {(totalSaidas/1000).toFixed(1)}k</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="entrada" className="space-y-3">
-          <TabsList className="h-8">
-            <TabsTrigger value="entrada" className="text-xs px-3">Entrada ({notasEntrada.length})</TabsTrigger>
-            <TabsTrigger value="saida" className="text-xs px-3">Saída ({notasSaida.length})</TabsTrigger>
+        <Tabs defaultValue="entrada" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="entrada" className="flex items-center gap-2">
+              <ArrowDownCircle className="h-4 w-4" />
+              Entrada ({notasEntrada.length})
+            </TabsTrigger>
+            <TabsTrigger value="saida" className="flex items-center gap-2">
+              <ArrowUpCircle className="h-4 w-4" />
+              Saída ({notasSaida.length})
+            </TabsTrigger>
           </TabsList>
 
           {/* Tab Entrada */}
-          <TabsContent value="entrada" className="space-y-3">
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                <Input placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-7 h-8 text-sm" />
-              </div>
-            </div>
-            
-            <div className="border rounded-lg overflow-hidden">
-              <div className="overflow-x-auto max-h-[400px]">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50 h-8">
-                      <TableHead className="text-[10px] h-8">Núm.</TableHead>
-                      <TableHead className="text-[10px] h-8">Emitente</TableHead>
-                      <TableHead className="text-[10px] h-8 text-right">Valor</TableHead>
-                      <TableHead className="text-[10px] h-8">Data</TableHead>
-                      <TableHead className="text-[10px] h-8">Status</TableHead>
-                      <TableHead className="text-[10px] h-8 text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredNotasEntrada.length === 0 ? (
-                      <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">Nenhuma nota encontrada</TableCell></TableRow>
-                    ) : filteredNotasEntrada.map((nota) => (
-                      <TableRow key={nota.id} className="h-8">
-                        <TableCell className="font-mono text-xs">{nota.numero}/{nota.serie}</TableCell>
-                        <TableCell className="text-xs max-w-[150px] truncate">{nota.emitente.nome}</TableCell>
-                        <TableCell className="text-right text-xs font-medium">R$ {nota.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-xs">{new Date(nota.dataEmissao).toLocaleDateString('pt-BR')}</TableCell>
-                        <TableCell>{getStatusBadge(nota.status)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-0.5">
-                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { setSelectedNf(nota); setDialogOpen(true); }}><Eye className="h-3 w-3" /></Button>
-                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => copiarChave(nota.chave)}><Copy className="h-3 w-3" /></Button>
-                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-red-600 hover:text-red-700" onClick={() => handleDelete(nota.id)}><Trash2 className="h-3 w-3" /></Button>
-                          </div>
-                        </TableCell>
+          <TabsContent value="entrada">
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex flex-col md:flex-row md:items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Buscar por número ou emitente..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-10" />
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Número</TableHead>
+                        <TableHead>Emitente</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredNotasEntrada.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                            Nenhuma nota de entrada encontrada
+                          </TableCell>
+                        </TableRow>
+                      ) : filteredNotasEntrada.map((nota) => (
+                        <TableRow key={nota.id}>
+                          <TableCell className="font-mono">{nota.numero}/{nota.serie}</TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{nota.emitente.nome}</p>
+                              <p className="text-xs text-muted-foreground">{nota.emitente.cnpj}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            R$ {nota.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell>{new Date(nota.dataEmissao).toLocaleDateString('pt-BR')}</TableCell>
+                          <TableCell>{getStatusBadge(nota.status)}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button size="sm" variant="ghost" onClick={() => { setSelectedNf(nota); setDialogOpen(true); }}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => copiarChave(nota.chave)}>
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" className="text-red-600" onClick={() => handleDelete(nota.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Tab Saída */}
-          <TabsContent value="saida" className="space-y-3">
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-              <Input placeholder="Buscar..." value={searchTermSaida} onChange={(e) => setSearchTermSaida(e.target.value)} className="pl-7 h-8 text-sm" />
-            </div>
-            
-            <div className="border rounded-lg overflow-hidden">
-              <div className="overflow-x-auto max-h-[400px]">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50 h-8">
-                      <TableHead className="text-[10px] h-8">Núm.</TableHead>
-                      <TableHead className="text-[10px] h-8">Destinatário</TableHead>
-                      <TableHead className="text-[10px] h-8 text-right">Valor</TableHead>
-                      <TableHead className="text-[10px] h-8">Data</TableHead>
-                      <TableHead className="text-[10px] h-8">Status</TableHead>
-                      <TableHead className="text-[10px] h-8 text-right">Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredNotasSaida.length === 0 ? (
-                      <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground text-sm">Nenhuma nota de saída. Notas são geradas nas vendas.</TableCell></TableRow>
-                    ) : filteredNotasSaida.map((nota) => (
-                      <TableRow key={nota.id} className="h-8">
-                        <TableCell className="font-mono text-xs">{nota.numero}/{nota.serie}</TableCell>
-                        <TableCell className="text-xs max-w-[150px] truncate">{nota.destinatario.nome}</TableCell>
-                        <TableCell className="text-right text-xs font-medium">R$ {nota.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                        <TableCell className="text-xs">{new Date(nota.dataEmissao).toLocaleDateString('pt-BR')}</TableCell>
-                        <TableCell>{getStatusBadge(nota.status)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-0.5">
-                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { setSelectedNf(nota); setDialogOpen(true); }}><Eye className="h-3 w-3" /></Button>
-                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => copiarChave(nota.chave)}><Copy className="h-3 w-3" /></Button>
-                          </div>
-                        </TableCell>
+          <TabsContent value="saida">
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input placeholder="Buscar por número ou destinatário..." value={searchTermSaida} onChange={(e) => setSearchTermSaida(e.target.value)} className="pl-10" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Número</TableHead>
+                        <TableHead>Destinatário</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredNotasSaida.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                            <Receipt className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                            <p>Nenhuma nota de saída</p>
+                            <p className="text-sm">As notas de saída são geradas automaticamente nas vendas</p>
+                          </TableCell>
+                        </TableRow>
+                      ) : filteredNotasSaida.map((nota) => (
+                        <TableRow key={nota.id}>
+                          <TableCell className="font-mono">{nota.numero}/{nota.serie}</TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{nota.destinatario.nome}</p>
+                              {nota.destinatario.cnpj && <p className="text-xs text-muted-foreground">{nota.destinatario.cnpj}</p>}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            R$ {nota.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell>{new Date(nota.dataEmissao).toLocaleDateString('pt-BR')}</TableCell>
+                          <TableCell>{getStatusBadge(nota.status)}</TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-1">
+                              <Button size="sm" variant="ghost" onClick={() => { setSelectedNf(nota); setDialogOpen(true); }}>
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => copiarChave(nota.chave)}>
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
 
-      {/* Dialog Detalhes - Compacto */}
+      {/* Dialog Detalhes */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[80vh]">
-          <DialogHeader className="pb-2">
-            <DialogTitle className="text-sm">Detalhes da NF-e</DialogTitle>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Detalhes da NF-e</DialogTitle>
           </DialogHeader>
           {selectedNf && (
             <ScrollArea className="max-h-[60vh]">
-              <div className="space-y-3 pr-4">
+              <div className="space-y-4 pr-4">
                 <div className="flex items-center gap-2">{getStatusBadge(selectedNf.status)}</div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="grid grid-cols-2 gap-2 text-sm">
                   <div><span className="text-muted-foreground">Número:</span> <span className="font-mono font-bold">{selectedNf.numero}/{selectedNf.serie}</span></div>
                   <div><span className="text-muted-foreground">Modelo:</span> {selectedNf.modelo}</div>
                 </div>
-                <div className="bg-muted/50 rounded p-2 text-xs">
-                  <p className="text-muted-foreground">Emitente</p>
+                <div className="bg-muted/50 rounded p-3 text-sm">
+                  <p className="text-muted-foreground text-xs">Emitente</p>
                   <p className="font-medium">{selectedNf.emitente.nome}</p>
-                  <p className="text-muted-foreground">{selectedNf.emitente.cnpj}</p>
+                  <p className="text-muted-foreground text-xs">{selectedNf.emitente.cnpj}</p>
                 </div>
-                <div className="bg-muted/50 rounded p-2 text-xs">
-                  <p className="text-muted-foreground">Destinatário</p>
+                <div className="bg-muted/50 rounded p-3 text-sm">
+                  <p className="text-muted-foreground text-xs">Destinatário</p>
                   <p className="font-medium">{selectedNf.destinatario.nome}</p>
-                  {selectedNf.destinatario.cnpj && <p className="text-muted-foreground">{selectedNf.destinatario.cnpj}</p>}
+                  {selectedNf.destinatario.cnpj && <p className="text-muted-foreground text-xs">{selectedNf.destinatario.cnpj}</p>}
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="grid grid-cols-2 gap-2 text-sm">
                   <div><span className="text-muted-foreground">Produtos:</span> R$ {selectedNf.valorProdutos.toFixed(2)}</div>
                   <div><span className="text-muted-foreground">Total:</span> <span className="font-bold">R$ {selectedNf.valorTotal.toFixed(2)}</span></div>
                 </div>
                 {selectedNf.produtos && selectedNf.produtos.length > 0 && (
-                  <div className="border rounded max-h-32 overflow-y-auto">
+                  <div className="border rounded max-h-40 overflow-y-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow className="h-6">
-                          <TableHead className="text-[10px] h-6">Cód.</TableHead>
-                          <TableHead className="text-[10px] h-6">Descrição</TableHead>
-                          <TableHead className="text-[10px] h-6 text-right">Qtd</TableHead>
-                          <TableHead className="text-[10px] h-6 text-right">Total</TableHead>
+                        <TableRow className="h-8">
+                          <TableHead className="text-xs">Cód.</TableHead>
+                          <TableHead className="text-xs">Descrição</TableHead>
+                          <TableHead className="text-xs text-right">Qtd</TableHead>
+                          <TableHead className="text-xs text-right">Total</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {selectedNf.produtos.map((prod, idx) => (
-                          <TableRow key={idx} className="h-6">
-                            <TableCell className="text-[10px] font-mono">{prod.codigo}</TableCell>
-                            <TableCell className="text-[10px] truncate max-w-[100px]">{prod.nome}</TableCell>
-                            <TableCell className="text-[10px] text-right">{prod.quantidade}</TableCell>
-                            <TableCell className="text-[10px] text-right">R$ {prod.valorTotal.toFixed(2)}</TableCell>
+                          <TableRow key={idx} className="h-8">
+                            <TableCell className="text-xs font-mono">{prod.codigo}</TableCell>
+                            <TableCell className="text-xs truncate max-w-[150px]">{prod.nome}</TableCell>
+                            <TableCell className="text-xs text-right">{prod.quantidade}</TableCell>
+                            <TableCell className="text-xs text-right">R$ {prod.valorTotal.toFixed(2)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -573,54 +677,67 @@ export default function FaturamentoPage() {
 
       {/* Dialog Importação */}
       <Dialog open={dialogImportacaoOpen} onOpenChange={setDialogImportacaoOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh]">
+        <DialogContent className="max-w-2xl max-h-[85vh]">
           <DialogHeader>
-            <DialogTitle className="text-sm flex items-center gap-2"><FileText className="h-4 w-4" />Confirmar Importação</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><FileText className="h-5 w-5" />Confirmar Importação</DialogTitle>
+            <DialogDescription>Revise os dados da nota fiscal antes de confirmar</DialogDescription>
           </DialogHeader>
           {dadosImportacao && (
             <ScrollArea className="max-h-[55vh]">
-              <div className="space-y-3 pr-4">
-                <div className="grid grid-cols-3 gap-2 p-2 bg-blue-50 rounded text-xs">
+              <div className="space-y-4 pr-4">
+                <div className="grid grid-cols-3 gap-3 p-3 bg-blue-50 rounded text-sm">
                   <div><span className="text-muted-foreground">Número:</span> <span className="font-bold">{dadosImportacao.numero}/{dadosImportacao.serie}</span></div>
                   <div><span className="text-muted-foreground">Valor:</span> <span className="font-bold text-green-600">R$ {dadosImportacao.valorTotal.toFixed(2)}</span></div>
                   <div><span className="text-muted-foreground">Data:</span> {dadosImportacao.dataEmissao.toLocaleDateString('pt-BR')}</div>
                 </div>
-                <div className={`p-2 rounded border ${fornecedorExiste ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
-                  <p className="text-xs font-medium">{dadosImportacao.emitente.nome} {fornecedorExiste ? <Badge className="bg-green-500 text-[10px]">Cadastrado</Badge> : <Badge className="bg-orange-500 text-[10px]">Novo</Badge>}</p>
-                  <p className="text-[10px] text-muted-foreground">{dadosImportacao.emitente.cnpj}</p>
+                <div className={`p-3 rounded border ${fornecedorExiste ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">{dadosImportacao.emitente.nome}</p>
+                      <p className="text-xs text-muted-foreground">{dadosImportacao.emitente.cnpj}</p>
+                    </div>
+                    {fornecedorExiste ? (
+                      <Badge className="bg-green-500">Cadastrado</Badge>
+                    ) : (
+                      <Badge className="bg-orange-500">Novo - será cadastrado</Badge>
+                    )}
+                  </div>
                 </div>
                 {dadosImportacao.produtos.length > 0 && (
-                  <div className="border rounded max-h-40 overflow-y-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="h-6">
-                          <TableHead className="text-[10px] h-6">Cód.</TableHead>
-                          <TableHead className="text-[10px] h-6">Produto</TableHead>
-                          <TableHead className="text-[10px] h-6 text-right">Qtd</TableHead>
-                          <TableHead className="text-[10px] h-6 text-right">Total</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {dadosImportacao.produtos.map((prod, idx) => (
-                          <TableRow key={idx} className="h-6">
-                            <TableCell className="text-[10px] font-mono">{prod.codigo}</TableCell>
-                            <TableCell className="text-[10px]">{prod.nome}</TableCell>
-                            <TableCell className="text-[10px] text-right">{prod.quantidade}</TableCell>
-                            <TableCell className="text-[10px] text-right">R$ {prod.valorTotal.toFixed(2)}</TableCell>
+                  <div className="border rounded">
+                    <div className="p-2 bg-muted/50 font-medium text-sm">Produtos ({dadosImportacao.produtos.length})</div>
+                    <div className="max-h-48 overflow-y-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="h-8">
+                            <TableHead className="text-xs">Cód.</TableHead>
+                            <TableHead className="text-xs">Produto</TableHead>
+                            <TableHead className="text-xs text-right">Qtd</TableHead>
+                            <TableHead className="text-xs text-right">Total</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {dadosImportacao.produtos.map((prod, idx) => (
+                            <TableRow key={idx} className="h-8">
+                              <TableCell className="text-xs font-mono">{prod.codigo}</TableCell>
+                              <TableCell className="text-xs">{prod.nome}</TableCell>
+                              <TableCell className="text-xs text-right">{prod.quantidade}</TableCell>
+                              <TableCell className="text-xs text-right">R$ {prod.valorTotal.toFixed(2)}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
                 )}
               </div>
             </ScrollArea>
           )}
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setDialogImportacaoOpen(false)}>Cancelar</Button>
-            <Button size="sm" onClick={handleConfirmarImportacao} disabled={savingImportacao}>
-              {savingImportacao ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Save className="mr-1 h-3 w-3" />}
-              Confirmar
+            <Button variant="outline" onClick={() => setDialogImportacaoOpen(false)}>Cancelar</Button>
+            <Button onClick={handleConfirmarImportacao} disabled={savingImportacao}>
+              {savingImportacao ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              Confirmar Importação
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -628,26 +745,40 @@ export default function FaturamentoPage() {
 
       {/* Dialog Entrada Estoque */}
       <Dialog open={dialogEstoqueOpen} onOpenChange={setDialogEstoqueOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh]">
+        <DialogContent className="max-w-2xl max-h-[85vh]">
           <DialogHeader>
-            <DialogTitle className="text-sm flex items-center gap-2"><PackagePlus className="h-4 w-4" />Entrada no Estoque</DialogTitle>
-            <DialogDescription className="text-xs">Selecione quais itens deseja dar entrada no estoque.</DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><PackagePlus className="h-5 w-5" />Entrada no Estoque</DialogTitle>
+            <DialogDescription>Selecione quais itens deseja dar entrada no estoque.</DialogDescription>
           </DialogHeader>
           {dadosImportacao && (
-            <ScrollArea className="max-h-[50vh]">
+            <ScrollArea className="max-h-[55vh]">
               <div className="space-y-2 pr-4">
+                <div className="p-2 bg-blue-50 rounded text-sm mb-4">
+                  <span className="font-medium">Nota Fiscal:</span> {dadosImportacao.numero} - {dadosImportacao.emitente.nome}
+                </div>
                 {dadosImportacao.produtos.map((prod, idx) => {
                   const produtoExistente = produtos.find(p => p.codigo === prod.codigo);
                   return (
-                    <div key={idx} className="flex items-center gap-2 p-2 border rounded text-xs">
-                      <Checkbox checked={produtosEntrada[idx] || false} onCheckedChange={(checked) => setProdutosEntrada(prev => ({ ...prev, [idx]: !!checked }))} />
+                    <div key={idx} className="flex items-start gap-3 p-3 border rounded hover:bg-muted/50">
+                      <Checkbox 
+                        id={`prod-${idx}`}
+                        className="mt-1"
+                        checked={produtosEntrada[idx] || false} 
+                        onCheckedChange={(checked) => setProdutosEntrada(prev => ({ ...prev, [idx]: !!checked }))} 
+                      />
                       <div className="flex-1">
-                        <p className="font-medium">{prod.nome}</p>
-                        <p className="text-muted-foreground">Cód: {prod.codigo} | Qtd: {prod.quantidade} | R$ {prod.valorTotal.toFixed(2)}</p>
+                        <Label htmlFor={`prod-${idx}`} className="font-medium cursor-pointer">{prod.nome}</Label>
+                        <p className="text-sm text-muted-foreground">
+                          Cód: {prod.codigo} | Qtd: {prod.quantidade} {prod.unidade} | R$ {prod.valorTotal.toFixed(2)}
+                        </p>
                         {produtoExistente ? (
-                          <p className="text-green-600 text-[10px]">✓ Produto cadastrado</p>
+                          <p className="text-xs text-green-600 flex items-center gap-1 mt-1">
+                            <CheckCircle className="h-3 w-3" /> Produto cadastrado - Estoque atual: {produtoExistente.estoqueAtual}
+                          </p>
                         ) : (
-                          <p className="text-orange-600 text-[10px]">⚠ Produto não cadastrado - cadastre primeiro</p>
+                          <p className="text-xs text-orange-600 flex items-center gap-1 mt-1">
+                            <AlertTriangle className="h-3 w-3" /> Produto não cadastrado - Cadastre primeiro no menu Produtos
+                          </p>
                         )}
                       </div>
                     </div>
@@ -656,9 +787,11 @@ export default function FaturamentoPage() {
               </div>
             </ScrollArea>
           )}
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => { setDialogEstoqueOpen(false); setDadosImportacao(null); }}>Pular</Button>
-            <Button size="sm" onClick={handleDarEntradaEstoque}><Package className="mr-1 h-3 w-3" />Dar Entrada</Button>
+          <DialogFooter className="flex gap-2">
+            <Button variant="outline" onClick={handlePularEntrada}>Pular</Button>
+            <Button onClick={handleDarEntradaEstoque}>
+              <Package className="mr-2 h-4 w-4" />Dar Entrada
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

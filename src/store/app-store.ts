@@ -204,7 +204,8 @@ export const useAppStore = create<AppState>((set, get) => ({
           get().loadParametros(),
           get().loadBancos(),
           get().loadImpressoras(),
-          get().loadFuncionarios()
+          get().loadFuncionarios(),
+          get().loadFornecedores()
         ]);
         set({ isLoading: false });
       }
@@ -220,6 +221,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         clientes: mockClientes,
         ordensServico: mockOrdensServico,
         notasFiscais: mockNotasFiscais,
+        fornecedores: mockFornecedores,
+        funcionarios: mockFuncionarios,
         bancos: [],
         impressoras: [],
         parametrosTenant: null,
@@ -237,7 +240,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   loadProdutos: async () => {
     const { currentTenant } = get();
-    if (!currentTenant) return;
+    if (!currentTenant) {
+      set({ produtos: mockProdutos });
+      return;
+    }
     try {
       const produtos = await getProdutos(currentTenant.id);
       set({ produtos: produtos.length > 0 ? produtos : mockProdutos });
@@ -248,7 +254,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   loadCategorias: async () => {
     const { currentTenant } = get();
-    if (!currentTenant) return;
+    if (!currentTenant) {
+      set({ categorias: mockCategorias });
+      return;
+    }
     try {
       const categorias = await getCategorias(currentTenant.id);
       set({ categorias: categorias.length > 0 ? categorias : mockCategorias });
@@ -364,7 +373,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   loadContasPagar: async () => {
     const { currentTenant } = get();
-    if (!currentTenant) return;
+    if (!currentTenant) {
+      set({ contasPagar: mockContasPagar });
+      return;
+    }
     try {
       const contas = await getContasPagar(currentTenant.id);
       set({ contasPagar: contas.length > 0 ? contas : mockContasPagar });
@@ -375,7 +387,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   loadContasReceber: async () => {
     const { currentTenant } = get();
-    if (!currentTenant) return;
+    if (!currentTenant) {
+      set({ contasReceber: mockContasReceber });
+      return;
+    }
     try {
       const contas = await getContasReceber(currentTenant.id);
       set({ contasReceber: contas.length > 0 ? contas : mockContasReceber });
@@ -452,7 +467,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   loadVendas: async () => {
     const { currentTenant } = get();
-    if (!currentTenant) return;
+    if (!currentTenant) {
+      set({ vendas: mockVendas });
+      return;
+    }
     try {
       const vendas = await getVendas(currentTenant.id);
       set({ vendas: vendas.length > 0 ? vendas : mockVendas });
@@ -540,7 +558,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   loadPedidos: async () => {
     const { currentTenant } = get();
-    if (!currentTenant) return;
+    if (!currentTenant) {
+      set({ pedidos: mockPedidos });
+      return;
+    }
     try {
       const pedidos = await getPedidos(currentTenant.id);
       set({ pedidos: pedidos.length > 0 ? pedidos : mockPedidos });
@@ -649,7 +670,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   loadOrdensServico: async () => {
     const { currentTenant } = get();
-    if (!currentTenant) return;
+    if (!currentTenant) {
+      set({ ordensServico: mockOrdensServico });
+      return;
+    }
     try {
       const ordens = await getOrdensServico(currentTenant.id);
       set({ ordensServico: ordens.length > 0 ? ordens : mockOrdensServico });
@@ -660,7 +684,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   loadNotasFiscais: async () => {
     const { currentTenant } = get();
-    if (!currentTenant) return;
+    if (!currentTenant) {
+      set({ notasFiscais: mockNotasFiscais });
+      return;
+    }
     try {
       const notas = await getNotasFiscais(currentTenant.id);
       set({ notasFiscais: notas.length > 0 ? notas : mockNotasFiscais });
@@ -671,7 +698,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   loadClientes: async () => {
     const { currentTenant } = get();
-    if (!currentTenant) return;
+    if (!currentTenant) {
+      set({ clientes: mockClientes });
+      return;
+    }
     try {
       const clientes = await getClientes(currentTenant.id);
       set({ clientes: clientes.length > 0 ? clientes : mockClientes });
@@ -984,15 +1014,18 @@ export const useAppStore = create<AppState>((set, get) => ({
   
   loadFuncionarios: async () => {
     const { currentTenant } = get();
-    if (!currentTenant) return;
+    if (!currentTenant) {
+      set({ funcionarios: mockFuncionarios });
+      return;
+    }
     try {
       // Buscar funcionários do Firestore
       const { getFuncionarios } = await import('@/lib/firestore-service');
       const funcionarios = await getFuncionarios(currentTenant.id);
-      set({ funcionarios: funcionarios || [] });
+      set({ funcionarios: funcionarios && funcionarios.length > 0 ? funcionarios : mockFuncionarios });
     } catch (error) {
       console.error('Erro ao carregar funcionários:', error);
-      set({ funcionarios: [] });
+      set({ funcionarios: mockFuncionarios });
     }
   },
   
@@ -1180,10 +1213,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!currentTenant) return;
     try {
       const fornecedores = await getFornecedoresFS(currentTenant.id);
-      set({ fornecedores: fornecedores || [] });
+      set({ fornecedores: fornecedores && fornecedores.length > 0 ? fornecedores : mockFornecedores });
     } catch (error) {
       console.error('Erro ao carregar fornecedores:', error);
-      set({ fornecedores: [] });
+      set({ fornecedores: mockFornecedores });
     }
   },
   
