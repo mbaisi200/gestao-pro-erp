@@ -673,23 +673,70 @@ export default function ParametrosPage() {
                                   '237': 'Bradesco',
                                   '341': 'Itaú',
                                   '033': 'Santander',
-                                  '745': 'Citibank',
+                                  '104': 'Caixa Econômica Federal',
                                   '077': 'Banco Inter',
                                   '260': 'Nubank',
+                                  '208': 'BTG Pactual',
+                                  '422': 'Banco Safra',
+                                  '655': 'Banco Votorantim',
+                                  '318': 'Banco BMG',
+                                  '623': 'Banco Pan',
+                                  '212': 'Banco Original',
+                                  '336': 'Banco C6',
+                                  '320': 'Banco Digio',
+                                  '735': 'Banco Neon',
+                                  '290': 'PagSeguro',
+                                  '323': 'Mercado Pago',
+                                  '748': 'Sicredi',
+                                  '756': 'Sicoob',
+                                  '041': 'Banrisul',
+                                  '070': 'BRB',
+                                  '637': 'Banco BV',
+                                  '021': 'Banestes',
+                                  '004': 'BNDES',
+                                  '025': 'Banco Alfa',
+                                  '063': 'Banco Ipb',
+                                  '074': 'Banco J. Safra',
+                                  '084': 'Uniprime',
+                                  '094': 'Banco Itaú BBA',
                                 };
                                 setNovoBanco({ ...novoBanco, codigo: value, nome: bancos[value] || '' });
                               }}
                             >
                               <SelectTrigger>
-                                <SelectValue placeholder="Selecione" />
+                                <SelectValue placeholder="Selecione o banco" />
                               </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="001">Banco do Brasil</SelectItem>
-                                <SelectItem value="237">Bradesco</SelectItem>
-                                <SelectItem value="341">Itaú</SelectItem>
-                                <SelectItem value="033">Santander</SelectItem>
-                                <SelectItem value="077">Banco Inter</SelectItem>
-                                <SelectItem value="260">Nubank</SelectItem>
+                              <SelectContent className="max-h-[300px]">
+                                <SelectItem value="001">001 - Banco do Brasil</SelectItem>
+                                <SelectItem value="237">237 - Bradesco</SelectItem>
+                                <SelectItem value="341">341 - Itaú</SelectItem>
+                                <SelectItem value="033">033 - Santander</SelectItem>
+                                <SelectItem value="104">104 - Caixa Econômica Federal</SelectItem>
+                                <SelectItem value="077">077 - Banco Inter</SelectItem>
+                                <SelectItem value="260">260 - Nubank</SelectItem>
+                                <SelectItem value="208">208 - BTG Pactual</SelectItem>
+                                <SelectItem value="422">422 - Banco Safra</SelectItem>
+                                <SelectItem value="655">655 - Banco Votorantim</SelectItem>
+                                <SelectItem value="318">318 - Banco BMG</SelectItem>
+                                <SelectItem value="623">623 - Banco Pan</SelectItem>
+                                <SelectItem value="212">212 - Banco Original</SelectItem>
+                                <SelectItem value="336">336 - Banco C6</SelectItem>
+                                <SelectItem value="320">320 - Banco Digio</SelectItem>
+                                <SelectItem value="735">735 - Banco Neon</SelectItem>
+                                <SelectItem value="290">290 - PagSeguro</SelectItem>
+                                <SelectItem value="323">323 - Mercado Pago</SelectItem>
+                                <SelectItem value="748">748 - Sicredi</SelectItem>
+                                <SelectItem value="756">756 - Sicoob</SelectItem>
+                                <SelectItem value="041">041 - Banrisul</SelectItem>
+                                <SelectItem value="070">070 - BRB</SelectItem>
+                                <SelectItem value="637">637 - Banco BV</SelectItem>
+                                <SelectItem value="021">021 - Banestes</SelectItem>
+                                <SelectItem value="004">004 - BNDES</SelectItem>
+                                <SelectItem value="025">025 - Banco Alfa</SelectItem>
+                                <SelectItem value="063">063 - Banco Ipb</SelectItem>
+                                <SelectItem value="074">074 - Banco J. Safra</SelectItem>
+                                <SelectItem value="084">084 - Uniprime</SelectItem>
+                                <SelectItem value="094">094 - Banco Itaú BBA</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>

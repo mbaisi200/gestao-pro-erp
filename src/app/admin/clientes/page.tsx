@@ -161,15 +161,15 @@ export default function ClientesPage() {
                 Novo Cliente
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
               <DialogHeader>
                 <DialogTitle>{editingCliente ? 'Editar Cliente' : 'Cadastrar Cliente'}</DialogTitle>
                 <DialogDescription>
                   Preencha os dados do cliente
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={handleSave}>
-                <div className="grid gap-4 py-4">
+              <form onSubmit={handleSave} className="flex flex-col flex-1 overflow-hidden">
+                <div className="grid gap-4 py-4 overflow-y-auto flex-1 pr-2">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2 col-span-2">
                       <Label htmlFor="nome">Nome / Razão Social *</Label>
