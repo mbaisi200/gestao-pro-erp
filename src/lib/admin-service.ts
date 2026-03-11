@@ -117,6 +117,35 @@ export async function updateTenant(tenantId: string, data: Partial<Tenant>): Pro
   await updateDoc(docRef, updateData);
 }
 
+/**
+ * Delete tenant using API route (with Firebase Admin SDK - bypasses security rules)
+ * This is the preferred method for production
+ */
+export async function deleteTenantViaAPI(tenantId: string, idToken: string): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    const response = await fetch('/api/admin/delete-tenant', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ tenantId, idToken }),
+    });
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Erro ao chamar API de exclusão:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erro ao conectar com o servidor'
+    };
+  }
+}
+
+/**
+ * Delete tenant directly via Firestore client SDK
+ * Requires proper Firestore security rules to be configured
+ */
 export async function deleteTenant(tenantId: string): Promise<void> {
   // Deletar todas as subcoleções primeiro
   const subcollections = [
