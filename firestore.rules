@@ -1,0 +1,26 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Usuários - apenas o próprio usuário pode ler/escrever seus dados
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Tenants - usuários autenticados podem ler/escrever no próprio tenant
+    match /tenants/{tenantId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+      
+      // Subcoleções do tenant (produtos, clientes, notasFiscais, etc.)
+      match /{collection}/{docId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+    
+    // Coleção usuarios (legado/alternativa)
+    match /usuarios/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
