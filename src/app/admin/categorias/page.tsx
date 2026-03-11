@@ -61,12 +61,29 @@ export default function CategoriasPage() {
     setSaving(true);
 
     const formData = new FormData(e.currentTarget);
+    const nomeCategoria = (formData.get('nome') as string).trim();
+
+    // Verificar se já existe categoria com o mesmo nome (case insensitive)
+    const nomeLower = nomeCategoria.toLowerCase();
+    const categoriaExistente = categorias.find(
+      cat => cat.nome.toLowerCase() === nomeLower && cat.id !== editingCategoria?.id
+    );
+
+    if (categoriaExistente) {
+      toast({
+        variant: 'destructive',
+        title: 'Categoria duplicada!',
+        description: `Já existe uma categoria com o nome "${categoriaExistente.nome}".`,
+      });
+      setSaving(false);
+      return;
+    }
 
     try {
       const categoriaData: Categoria = {
         id: editingCategoria?.id || `cat-${Date.now()}`,
         tenantId: tenant?.id || '',
-        nome: formData.get('nome') as string,
+        nome: nomeCategoria,
         descricao: formData.get('descricao') as string || '',
         cor: formData.get('cor') as string || '#3b82f6',
         ativa: true,

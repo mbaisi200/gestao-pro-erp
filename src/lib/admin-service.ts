@@ -119,18 +119,32 @@ export async function updateTenant(tenantId: string, data: Partial<Tenant>): Pro
 
 export async function deleteTenant(tenantId: string): Promise<void> {
   // Deletar todas as subcoleções primeiro
-  const subcollections = ['produtos', 'categorias', 'contasPagar', 'contasReceber', 'vendas', 'pedidos', 'clientes', 'notasFiscais', 'ordensServico'];
-  
+  const subcollections = [
+    'produtos', 'categorias', 'contasPagar', 'contasReceber', 'vendas', 'pedidos',
+    'clientes', 'notasFiscais', 'ordensServico', 'vendedores', 'fornecedores',
+    'unidadesMedida', 'funcionarios', 'usuarios', 'estoque'
+  ];
+
+  console.log('Iniciando exclusão do tenant:', tenantId);
+
   for (const subcol of subcollections) {
     const colRef = collection(db, 'tenants', tenantId, subcol);
     const docs = await getDocs(colRef);
-    const batch = writeBatch(db);
-    docs.docs.forEach(doc => batch.delete(doc.ref));
-    await batch.commit();
+
+    // Deletar em batches de 500 (limite do Firestore)
+    const batchSize = 500;
+    for (let i = 0; i < docs.docs.length; i += batchSize) {
+      const batch = writeBatch(db);
+      const batchDocs = docs.docs.slice(i, i + batchSize);
+      batchDocs.forEach(doc => batch.delete(doc.ref));
+      await batch.commit();
+    }
+    console.log(`Subcoleção ${subcol} excluída: ${docs.docs.length} documentos`);
   }
-  
+
   // Deletar o tenant
   await deleteDoc(doc(db, 'tenants', tenantId));
+  console.log('Tenant excluído:', tenantId);
 }
 
 export async function updateTenantStatus(tenantId: string, status: Tenant['status']): Promise<void> {

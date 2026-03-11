@@ -4,6 +4,7 @@ import { User, Tenant } from '@/types';
 import { loginWithEmail, signOut, getUserProfile, UserProfile } from '@/lib/auth-service';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { isTenantExpired } from '@/lib/admin-service';
 
 interface AuthState {
   user: User | null;
@@ -59,7 +60,7 @@ export const useAuthStore = create<AuthState>()(
             try {
               const tenantRef = doc(db, 'tenants', profile.tenantId);
               const tenantSnap = await getDoc(tenantRef);
-              
+
               if (tenantSnap.exists()) {
                 const tenantData = tenantSnap.data();
                 tenant = {
@@ -83,6 +84,36 @@ export const useAuthStore = create<AuthState>()(
                   }
                 };
                 console.log('Tenant encontrado:', tenant.nome);
+
+                // Verificar se o tenant está expirado ou suspenso
+                // Exceto para admin-master que tem acesso total
+                if (profile.tenantId !== 'admin-master') {
+                  const expired = tenantData.dataExpiracao && isTenantExpired(tenantData.dataExpiracao.toDate());
+
+                  if (expired || tenant.status === 'expirado') {
+                    console.log('Tenant expirado:', tenant.nome);
+                    set({
+                      isLoading: false,
+                      error: 'Sua assinatura expirou. Entre em contato com o suporte para renovar.',
+                      isAuthenticated: false,
+                      user: null,
+                      tenant: null,
+                    });
+                    return false;
+                  }
+
+                  if (tenant.status === 'suspenso') {
+                    console.log('Tenant suspenso:', tenant.nome);
+                    set({
+                      isLoading: false,
+                      error: 'Sua conta está suspensa. Entre em contato com o suporte.',
+                      isAuthenticated: false,
+                      user: null,
+                      tenant: null,
+                    });
+                    return false;
+                  }
+                }
               } else {
                 console.log('Tenant não encontrado para ID:', profile.tenantId);
                 // Criar tenant básico se não existir

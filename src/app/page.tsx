@@ -21,6 +21,7 @@ import {
   TrendingUp,
   ArrowRight,
 } from 'lucide-react';
+import { isTenantExpired } from '@/lib/admin-service';
 
 export default function Page() {
   const { isAuthenticated, user, tenant, setUser, setTenant, logout } = useAuthStore();
@@ -50,9 +51,30 @@ export default function Page() {
             if (profile.tenantId) {
               const tenantRef = doc(db, 'tenants', profile.tenantId);
               const tenantSnap = await getDoc(tenantRef);
-              
+
               if (tenantSnap.exists()) {
                 const td = tenantSnap.data();
+
+                // Verificar se o tenant está expirado ou suspenso
+                // Exceto para admin-master que tem acesso total
+                if (profile.tenantId !== 'admin-master') {
+                  const expired = td.dataExpiracao && isTenantExpired(td.dataExpiracao.toDate());
+
+                  if (expired || td.status === 'expirado') {
+                    console.log('Tenant expirado na restauração de sessão:', td.nome);
+                    await logout();
+                    setFirebaseReady(true);
+                    return;
+                  }
+
+                  if (td.status === 'suspenso') {
+                    console.log('Tenant suspenso na restauração de sessão:', td.nome);
+                    await logout();
+                    setFirebaseReady(true);
+                    return;
+                  }
+                }
+
                 tenantData = {
                   id: td.id || profile.tenantId,
                   nome: td.nome || 'Empresa',

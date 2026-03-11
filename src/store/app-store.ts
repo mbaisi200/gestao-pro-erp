@@ -129,6 +129,8 @@ interface AppState {
   tenants: Tenant[];
   planos: PlanoAssinatura[];
   loadTenants: () => Promise<void>;
+  addTenant: (tenant: Tenant) => void;
+  setTenants: (tenants: Tenant[]) => void;
   updateTenantStatus: (id: string, status: Tenant['status']) => Promise<void>;
   
   // Funcionários
@@ -1100,7 +1102,17 @@ export const useAppStore = create<AppState>()(
       set({ tenants: [] });
     }
   },
-  
+
+  addTenant: (tenant: Tenant) => {
+    set((state) => ({
+      tenants: [...state.tenants, tenant]
+    }));
+  },
+
+  setTenants: (tenants: Tenant[]) => {
+    set({ tenants });
+  },
+
   updateTenantStatus: async (id: string, status: Tenant['status']) => {
     try {
       await updateTenantStatus(id, status);

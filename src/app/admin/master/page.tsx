@@ -36,6 +36,7 @@ import { useAuthStore } from '@/store/auth-store';
 import { useAppStore } from '@/store/app-store';
 import { useToast } from '@/hooks/use-toast';
 import { Tenant } from '@/types';
+import { createNewTenant, deleteTenant } from '@/lib/admin-service';
 import {
   Shield,
   Building2,
@@ -81,7 +82,7 @@ const PLANOS = [
 
 export default function MasterAdminPage() {
   const { user, tenant: currentTenant } = useAuthStore();
-  const { tenants, loadTenants, updateTenantStatus } = useAppStore();
+  const { tenants, loadTenants, addTenant, updateTenantStatus, setTenants } = useAppStore();
   const { toast } = useToast();
 
   const [search, setSearch] = useState('');
@@ -91,7 +92,8 @@ export default function MasterAdminPage() {
   const [dialogDetalhes, setDialogDetalhes] = useState(false);
   const [empresaSelecionada, setEmpresaSelecionada] = useState<Tenant | null>(null);
   const [saving, setSaving] = useState(false);
-  
+  const [excluindoEmpresa, setExcluindoEmpresa] = useState<string | null>(null);
+
   // Estados para popular dados
   const [dataExists, setDataExists] = useState(false);
   const [populatingData, setPopulatingData] = useState(false);
@@ -220,6 +222,62 @@ export default function MasterAdminPage() {
 
     setSaving(true);
     try {
+      // Calcular data de expiração
+      const dataExpiracao = addMonths(new Date(), novaEmpresa.meses);
+
+      // Criar a empresa no Firestore
+      const tenantId = await createNewTenant({
+        nome: novaEmpresa.nome,
+        cnpj: novaEmpresa.cnpj,
+        email: novaEmpresa.email,
+        telefone: novaEmpresa.telefone,
+        endereco: {
+          logradouro: '',
+          numero: '',
+          complemento: '',
+          bairro: '',
+          cidade: '',
+          estado: '',
+          cep: ''
+        },
+        plano: novaEmpresa.plano,
+        dataExpiracao
+      });
+
+      console.log('Empresa criada com ID:', tenantId);
+
+      // Adicionar a nova empresa diretamente no estado local para atualização imediata
+      const novoTenant: Tenant = {
+        id: tenantId,
+        nome: novaEmpresa.nome,
+        cnpj: novaEmpresa.cnpj,
+        email: novaEmpresa.email,
+        telefone: novaEmpresa.telefone,
+        endereco: {
+          logradouro: '',
+          numero: '',
+          complemento: '',
+          bairro: '',
+          cidade: '',
+          estado: '',
+          cep: ''
+        },
+        plano: novaEmpresa.plano,
+        status: 'ativo',
+        dataCriacao: new Date(),
+        dataExpiracao,
+        configuracoes: {
+          corTema: '#2563eb',
+          logoUrl: '',
+          moeda: 'BRL',
+          timezone: 'America/Sao_Paulo',
+          nfSerie: 1,
+          nfNumeroAtual: 1000
+        }
+      };
+
+      addTenant(novoTenant);
+
       toast({
         title: 'Empresa criada!',
         description: `${novaEmpresa.nome} foi cadastrada com sucesso.`,
@@ -235,9 +293,9 @@ export default function MasterAdminPage() {
         meses: 1,
       });
 
-      loadTenants();
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Erro ao criar empresa' });
+      console.error('Erro ao criar empresa:', error);
+      toast({ variant: 'destructive', title: 'Erro ao criar empresa', description: String(error) });
     } finally {
       setSaving(false);
     }
@@ -267,6 +325,37 @@ export default function MasterAdminPage() {
       loadTenants();
     } catch (error) {
       toast({ variant: 'destructive', title: 'Erro ao estender período' });
+    }
+  };
+
+  // Excluir empresa
+  const handleExcluirEmpresa = async (empresa: Tenant) => {
+    // Confirmação dupla
+    if (!confirm(`TEM CERTEZA que deseja excluir a empresa "${empresa.nome}"?\n\nEsta ação é IRREVERSÍVEL e apagará TODOS os dados da empresa, incluindo:\n- Produtos e categorias\n- Clientes e fornecedores\n- Vendas e pedidos\n- Notas fiscais\n- Contas a pagar e receber\n- Funcionários e vendedores\n\nDeseja continuar?`)) {
+      return;
+    }
+
+    if (!confirm(`ÚLTIMA CONFIRMAÇÃO!\n\nA empresa "${empresa.nome}" será EXCLUÍDA PERMANENTEMENTE.\n\nDigite "EXCLUIR" e pressione OK para confirmar.`)) {
+      return;
+    }
+
+    setExcluindoEmpresa(empresa.id);
+    try {
+      console.log('Excluindo empresa:', empresa.id, empresa.nome);
+      await deleteTenant(empresa.id);
+
+      // Remover do estado local
+      setTenants(tenants.filter(t => t.id !== empresa.id));
+
+      toast({
+        title: 'Empresa excluída!',
+        description: `${empresa.nome} foi removida permanentemente do sistema.`,
+      });
+    } catch (error) {
+      console.error('Erro ao excluir empresa:', error);
+      toast({ variant: 'destructive', title: 'Erro ao excluir empresa', description: String(error) });
+    } finally {
+      setExcluindoEmpresa(null);
     }
   };
 
@@ -666,6 +755,19 @@ export default function MasterAdminPage() {
                                     <DropdownMenuItem onClick={() => handleAlterarStatus(empresa, 'expirado')} className="text-red-600">
                                       <XCircle className="h-4 w-4 mr-2" />
                                       Marcar Expirado
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      onClick={() => handleExcluirEmpresa(empresa)}
+                                      className="text-red-600 focus:bg-red-50"
+                                      disabled={excluindoEmpresa === empresa.id}
+                                    >
+                                      {excluindoEmpresa === empresa.id ? (
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                      )}
+                                      {excluindoEmpresa === empresa.id ? 'Excluindo...' : 'Excluir Empresa'}
                                     </DropdownMenuItem>
                                   </DropdownMenuContent>
                                 </DropdownMenu>

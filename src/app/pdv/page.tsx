@@ -258,46 +258,48 @@ export default function PDVPage() {
       <div className="flex-1 flex overflow-hidden gap-4 p-4">
         {/* COLUNA CENTRAL - PRODUTOS */}
         <div className="flex-1 flex flex-col overflow-hidden bg-white rounded-lg shadow-sm border border-blue-100">
-          {/* CATEGORIAS */}
-          <div className="bg-blue-50 px-4 py-3 flex gap-2 overflow-x-auto border-b border-blue-100">
-            <Button
-              size="sm"
-              variant={categoriaAtiva === 'todos' ? 'default' : 'outline'}
-              className={`font-bold whitespace-nowrap transition-all ${categoriaAtiva === 'todos' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-50'}`}
-              onClick={() => setCategoriaAtiva('todos')}
-            >
-              Todos
-            </Button>
-            {categorias.map(cat => (
-              <Button
-                key={cat.id}
-                size="sm"
-                variant={categoriaAtiva === cat.id ? 'default' : 'outline'}
-                style={categoriaAtiva === cat.id ? { backgroundColor: cat.cor || '#3B82F6', color: 'white' } : { borderColor: cat.cor || '#3B82F6', color: cat.cor || '#3B82F6' }}
-                className={`font-bold whitespace-nowrap transition-all ${categoriaAtiva === cat.id ? 'shadow-md' : 'bg-white hover:shadow-md'}`}
-                onClick={() => setCategoriaAtiva(cat.id)}
-              >
-                {cat.nome}
-              </Button>
-            ))}
-          </div>
-
-          {/* BUSCA */}
-          <div className="p-4 border-b border-blue-100 bg-white">
+          {/* BUSCA - Movida para cima */}
+          <div className="p-4 border-b border-blue-100 bg-white shrink-0">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
               <Input
                 placeholder="Buscar por nome ou código de barras..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 border border-blue-200 focus:border-blue-500 rounded-lg font-semibold"
+                className="pl-10 border border-blue-200 focus:border-blue-500 rounded-lg font-semibold h-12 text-lg"
                 autoFocus
               />
             </div>
           </div>
 
-          {/* GRID PRODUTOS */}
-          <ScrollArea className="flex-1 p-4">
+          {/* CATEGORIAS - Com wrap para não atrapalhar */}
+          <div className="bg-blue-50 px-4 py-3 border-b border-blue-100 shrink-0">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant={categoriaAtiva === 'todos' ? 'default' : 'outline'}
+                className={`font-bold whitespace-nowrap transition-all h-10 px-4 ${categoriaAtiva === 'todos' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-50'}`}
+                onClick={() => setCategoriaAtiva('todos')}
+              >
+                Todos
+              </Button>
+              {categorias.map(cat => (
+                <Button
+                  key={cat.id}
+                  size="sm"
+                  variant={categoriaAtiva === cat.id ? 'default' : 'outline'}
+                  style={categoriaAtiva === cat.id ? { backgroundColor: cat.cor || '#3B82F6', color: 'white' } : { borderColor: cat.cor || '#3B82F6', color: cat.cor || '#3B82F6' }}
+                  className={`font-bold whitespace-nowrap transition-all h-10 px-4 ${categoriaAtiva === cat.id ? 'shadow-md' : 'bg-white hover:shadow-md'}`}
+                  onClick={() => setCategoriaAtiva(cat.id)}
+                >
+                  {cat.nome}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* GRID PRODUTOS - Com scroll */}
+          <div className="flex-1 overflow-y-auto p-4">
             {produtosFiltrados.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-gray-400">
                 <Package className="h-20 w-20 mb-4 opacity-30" />
@@ -305,27 +307,27 @@ export default function PDVPage() {
                 <p className="text-sm">Cadastre produtos no módulo de administração</p>
               </div>
             ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
                 {produtosFiltrados.map(produto => {
                   const categoria = categorias.find(c => c.id === produto.categoriaId);
                   const corCategoria = categoria?.cor || '#3B82F6';
                   return (
                     <button
                       key={produto.id}
-                      className="group bg-white rounded-lg p-3 hover:shadow-md active:scale-95 transition-all border border-blue-100 hover:border-blue-300 overflow-hidden relative"
+                      className="group bg-white rounded-lg p-3 hover:shadow-md active:scale-95 transition-all border border-blue-100 hover:border-blue-300 overflow-hidden relative min-h-[120px]"
                       onClick={() => adicionarProduto(produto)}
                     >
                       <div className="absolute inset-0 bg-blue-50 opacity-0 group-hover:opacity-100 transition-opacity" />
-                      
-                      <div className="relative z-10">
-                        <div 
-                          className="h-14 rounded-lg flex items-center justify-center mb-2 shadow-md transition-transform group-hover:scale-110"
+
+                      <div className="relative z-10 flex flex-col items-center text-center">
+                        <div
+                          className="h-12 w-12 rounded-lg flex items-center justify-center mb-2 shadow-md transition-transform group-hover:scale-110"
                           style={{ backgroundColor: `${corCategoria}25` }}
                         >
-                          <Package className="h-7 w-7" style={{ color: corCategoria }} />
+                          <Package className="h-6 w-6" style={{ color: corCategoria }} />
                         </div>
-                        <p className="text-sm font-bold truncate text-gray-800 group-hover:text-blue-600">{produto.nome}</p>
-                        <p className="text-base font-extrabold text-green-600 mt-1">
+                        <p className="text-xs font-bold line-clamp-2 text-gray-800 group-hover:text-blue-600 mb-1">{produto.nome}</p>
+                        <p className="text-sm font-extrabold text-green-600">
                           R$ {(produto.precoVenda || 0).toFixed(2)}
                         </p>
                       </div>
@@ -334,7 +336,7 @@ export default function PDVPage() {
                 })}
               </div>
             )}
-          </ScrollArea>
+          </div>
         </div>
 
         {/* COLUNA DIREITA - CARRINHO */}
