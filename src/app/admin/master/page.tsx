@@ -36,7 +36,8 @@ import { useAuthStore } from '@/store/auth-store';
 import { useAppStore } from '@/store/app-store';
 import { useToast } from '@/hooks/use-toast';
 import { Tenant } from '@/types';
-import { createNewTenant, deleteTenant } from '@/lib/admin-service';
+import { createNewTenant, deleteTenant, updateTenant, manageTenantUser } from '@/lib/admin-service';
+import { auth } from '@/lib/firebase';
 import {
   Shield,
   Building2,
@@ -60,6 +61,8 @@ import {
   FileText,
   RefreshCw,
   Trash2,
+  Edit,
+  Key,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -90,6 +93,7 @@ export default function MasterAdminPage() {
   const [filtroPlano, setFiltroPlano] = useState<string>('todos');
   const [dialogNovaEmpresa, setDialogNovaEmpresa] = useState(false);
   const [dialogDetalhes, setDialogDetalhes] = useState(false);
+  const [dialogEditar, setDialogEditar] = useState(false);
   const [empresaSelecionada, setEmpresaSelecionada] = useState<Tenant | null>(null);
   const [saving, setSaving] = useState(false);
   const [excluindoEmpresa, setExcluindoEmpresa] = useState<string | null>(null);
@@ -108,6 +112,19 @@ export default function MasterAdminPage() {
     telefone: '',
     plano: 'basico' as 'basico' | 'profissional' | 'enterprise',
     meses: 1,
+  });
+
+  // Formulário editar empresa
+  const [editarEmpresa, setEditarEmpresa] = useState({
+    nome: '',
+    cnpj: '',
+    email: '',
+    telefone: '',
+    plano: 'basico' as 'basico' | 'profissional' | 'enterprise',
+    status: 'ativo' as 'ativo' | 'suspenso' | 'expirado',
+    dataExpiracao: '',
+    senha: '',
+    confirmarSenha: '',
   });
 
   // Carregar tenants ao montar
@@ -358,6 +375,103 @@ export default function MasterAdminPage() {
       toast({ variant: 'destructive', title: 'Erro ao excluir empresa', description: String(error) });
     } finally {
       setExcluindoEmpresa(null);
+    }
+  };
+
+  // Abrir dialog de edição
+  const handleAbrirEdicao = (empresa: Tenant) => {
+    setEmpresaSelecionada(empresa);
+    setEditarEmpresa({
+      nome: empresa.nome,
+      cnpj: empresa.cnpj,
+      email: empresa.email,
+      telefone: empresa.telefone || '',
+      plano: empresa.plano,
+      status: empresa.status,
+      dataExpiracao: empresa.dataExpiracao ? format(new Date(empresa.dataExpiracao), 'yyyy-MM-dd') : '',
+      senha: '',
+      confirmarSenha: '',
+    });
+    setDialogEditar(true);
+  };
+
+  // Salvar edição da empresa
+  const handleSalvarEdicao = async () => {
+    if (!empresaSelecionada) return;
+    
+    if (!editarEmpresa.nome || !editarEmpresa.cnpj || !editarEmpresa.email) {
+      toast({ variant: 'destructive', title: 'Preencha todos os campos obrigatórios' });
+      return;
+    }
+
+    // Validar senha se preenchida
+    if (editarEmpresa.senha) {
+      if (editarEmpresa.senha.length < 6) {
+        toast({ variant: 'destructive', title: 'A senha deve ter pelo menos 6 caracteres' });
+        return;
+      }
+      if (editarEmpresa.senha !== editarEmpresa.confirmarSenha) {
+        toast({ variant: 'destructive', title: 'As senhas não conferem' });
+        return;
+      }
+    }
+
+    setSaving(true);
+    try {
+      // Atualizar dados do tenant
+      await updateTenant(empresaSelecionada.id, {
+        nome: editarEmpresa.nome,
+        cnpj: editarEmpresa.cnpj,
+        email: editarEmpresa.email,
+        telefone: editarEmpresa.telefone,
+        plano: editarEmpresa.plano,
+        status: editarEmpresa.status,
+        dataExpiracao: editarEmpresa.dataExpiracao ? new Date(editarEmpresa.dataExpiracao) : undefined,
+      });
+
+      // Se senha foi preenchida, criar/atualizar usuário
+      if (editarEmpresa.senha) {
+        const currentUser = auth.currentUser;
+        if (!currentUser) {
+          throw new Error('Usuário não autenticado');
+        }
+
+        const idToken = await currentUser.getIdToken();
+        
+        const result = await manageTenantUser(
+          empresaSelecionada.id,
+          editarEmpresa.email,
+          editarEmpresa.senha,
+          editarEmpresa.nome,
+          idToken
+        );
+
+        if (!result.success) {
+          toast({ 
+            variant: 'destructive', 
+            title: 'Erro ao definir senha', 
+            description: result.error || 'Não foi possível criar/atualizar o usuário. Configure o Firebase Admin SDK.'
+          });
+          // Continua mesmo com erro na senha, pois o tenant foi atualizado
+        } else {
+          toast({ title: 'Senha definida com sucesso!' });
+        }
+      }
+
+      // Atualizar estado local
+      loadTenants();
+
+      toast({
+        title: 'Empresa atualizada!',
+        description: `${editarEmpresa.nome} foi atualizada com sucesso.`,
+      });
+
+      setDialogEditar(false);
+    } catch (error) {
+      console.error('Erro ao atualizar empresa:', error);
+      toast({ variant: 'destructive', title: 'Erro ao atualizar empresa', description: String(error) });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -733,6 +847,10 @@ export default function MasterAdminPage() {
                                       <Eye className="h-4 w-4 mr-2" />
                                       Ver Detalhes
                                     </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleAbrirEdicao(empresa)}>
+                                      <Edit className="h-4 w-4 mr-2" />
+                                      Editar Empresa
+                                    </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => handleEstenderPeriodo(empresa, 1)}>
                                       <Calendar className="h-4 w-4 mr-2" />
                                       Estender +1 mês
@@ -979,6 +1097,172 @@ export default function MasterAdminPage() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogDetalhes(false)}>
                 Fechar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog Editar Empresa */}
+        <Dialog open={dialogEditar} onOpenChange={setDialogEditar}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Edit className="h-5 w-5" />
+                Editar Empresa
+              </DialogTitle>
+              <DialogDescription>
+                Edite os dados da empresa e, opcionalmente, cadastre ou altere a senha de acesso.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-6 py-4">
+              {/* Dados da Empresa */}
+              <div className="space-y-4">
+                <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">Dados da Empresa</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-nome">Nome da Empresa *</Label>
+                    <Input
+                      id="edit-nome"
+                      value={editarEmpresa.nome}
+                      onChange={(e) => setEditarEmpresa({ ...editarEmpresa, nome: e.target.value })}
+                      placeholder="Razão Social"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-cnpj">CNPJ *</Label>
+                    <Input
+                      id="edit-cnpj"
+                      value={editarEmpresa.cnpj}
+                      onChange={(e) => setEditarEmpresa({ ...editarEmpresa, cnpj: e.target.value })}
+                      placeholder="00.000.000/0000-00"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-email">Email *</Label>
+                    <Input
+                      id="edit-email"
+                      type="email"
+                      value={editarEmpresa.email}
+                      onChange={(e) => setEditarEmpresa({ ...editarEmpresa, email: e.target.value })}
+                      placeholder="empresa@email.com"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-telefone">Telefone</Label>
+                    <Input
+                      id="edit-telefone"
+                      value={editarEmpresa.telefone}
+                      onChange={(e) => setEditarEmpresa({ ...editarEmpresa, telefone: e.target.value })}
+                      placeholder="(00) 0000-0000"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-plano">Plano</Label>
+                    <Select
+                      value={editarEmpresa.plano}
+                      onValueChange={(value) => setEditarEmpresa({ ...editarEmpresa, plano: value as any })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PLANOS.map(p => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-status">Status</Label>
+                    <Select
+                      value={editarEmpresa.status}
+                      onValueChange={(value) => setEditarEmpresa({ ...editarEmpresa, status: value as any })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ativo">Ativo</SelectItem>
+                        <SelectItem value="suspenso">Suspenso</SelectItem>
+                        <SelectItem value="expirado">Expirado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-expiracao">Data Expiração</Label>
+                    <Input
+                      id="edit-expiracao"
+                      type="date"
+                      value={editarEmpresa.dataExpiracao}
+                      onChange={(e) => setEditarEmpresa({ ...editarEmpresa, dataExpiracao: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Senha de Acesso */}
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-center gap-2">
+                  <Key className="h-5 w-5 text-purple-600" />
+                  <h4 className="font-medium text-sm text-muted-foreground uppercase tracking-wider">
+                    Senha de Acesso
+                  </h4>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Preencha os campos abaixo para cadastrar ou alterar a senha de acesso da empresa. 
+                  Se não quiser alterar a senha, deixe os campos em branco.
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-senha">Nova Senha</Label>
+                    <Input
+                      id="edit-senha"
+                      type="password"
+                      value={editarEmpresa.senha}
+                      onChange={(e) => setEditarEmpresa({ ...editarEmpresa, senha: e.target.value })}
+                      placeholder="Mínimo 6 caracteres"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-confirmar">Confirmar Senha</Label>
+                    <Input
+                      id="edit-confirmar"
+                      type="password"
+                      value={editarEmpresa.confirmarSenha}
+                      onChange={(e) => setEditarEmpresa({ ...editarEmpresa, confirmarSenha: e.target.value })}
+                      placeholder="Confirme a senha"
+                    />
+                  </div>
+                </div>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <p className="text-sm text-yellow-800">
+                    <strong>Atenção:</strong> Para cadastrar/alterar senhas, é necessário configurar as credenciais do Firebase Admin SDK no arquivo .env do servidor.
+                  </p>
+                </div>
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => setDialogEditar(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSalvarEdicao} disabled={saving} className="gap-2">
+                {saving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4" />
+                    Salvar Alterações
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>

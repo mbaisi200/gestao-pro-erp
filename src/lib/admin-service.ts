@@ -986,3 +986,66 @@ export async function getRelatorioVendedores(
   
   return relatorios.sort((a, b) => b.valorTotal - a.valorTotal);
 }
+
+// ========== GERENCIAR USUÁRIO DA EMPRESA ==========
+
+/**
+ * Criar ou atualizar usuário no Firebase Auth via API
+ */
+export async function manageTenantUser(
+  tenantId: string,
+  email: string,
+  password: string,
+  nome: string,
+  idToken: string
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    const response = await fetch('/api/admin/manage-user', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tenantId,
+        email,
+        password,
+        nome,
+        idToken,
+        action: 'create-user',
+      }),
+    });
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Erro ao gerenciar usuário:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erro ao conectar com o servidor',
+    };
+  }
+}
+
+/**
+ * Verificar se usuário existe no Firebase Auth
+ */
+export async function checkUserExists(email: string, idToken: string): Promise<{ exists: boolean; displayName?: string }> {
+  try {
+    const response = await fetch('/api/admin/manage-user', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        idToken,
+        action: 'check-user',
+      }),
+    });
+
+    const data = await response.json();
+    return { exists: data.exists, displayName: data.displayName };
+  } catch {
+    return { exists: false };
+  }
+}
