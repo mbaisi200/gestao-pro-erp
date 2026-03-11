@@ -1,43 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-import { getAuth } from 'firebase-admin/auth';
-
-// Check if Firebase Admin credentials are configured
-function hasAdminCredentials(): boolean {
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
-  return !!(clientEmail && privateKey && privateKey !== '-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----\n');
-}
-
-// Initialize Firebase Admin if not already initialized
-function getFirebaseAdminApp(): App | null {
-  if (getApps().length > 0) {
-    return getApps()[0];
-  }
-
-  const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'gestao-pro-2e9ce';
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-
-  if (clientEmail && privateKey && !privateKey.includes('YOUR_PRIVATE_KEY_HERE')) {
-    try {
-      return initializeApp({
-        credential: cert({
-          projectId,
-          clientEmail,
-          privateKey,
-        }),
-      });
-    } catch (error) {
-      console.error('Error initializing Firebase Admin with credentials:', error);
-      return null;
-    }
-  }
-
-  console.warn('Firebase Admin credentials not configured.');
-  return null;
-}
+import { getFirebaseAdminApp, hasAdminCredentials, getAdminAuth, getAdminFirestore } from '@/lib/firebase-admin';
 
 export async function POST(request: NextRequest) {
   try {
@@ -49,23 +11,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Token não fornecido' }, { status: 401 });
     }
 
+    // Verificar se as credenciais estão configuradas
+    if (!hasAdminCredentials()) {
+      return NextResponse.json({
+        success: false,
+        error: 'Firebase Admin não configurado',
+        details: `Para gerenciar usuários, configure as credenciais do Firebase Admin SDK:
+
+1. Acesse o Firebase Console (https://console.firebase.google.com)
+2. Selecione o projeto
+3. Vá em Configurações > Contas de serviço
+4. Clique em "Gerar nova chave privada"
+5. Configure as variáveis de ambiente:
+   - FIREBASE_PROJECT_ID
+   - FIREBASE_CLIENT_EMAIL
+   - FIREBASE_PRIVATE_KEY`
+      }, { status: 500 });
+    }
+
     // Inicializar Firebase Admin
     const app = getFirebaseAdminApp();
     if (!app) {
       return NextResponse.json({
         success: false,
-        error: 'Firebase Admin não configurado. Configure as credenciais no .env para gerenciar usuários.',
+        error: 'Erro ao inicializar Firebase Admin. Verifique as credenciais no .env',
       }, { status: 500 });
     }
 
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    const auth = getAdminAuth();
+    const db = getAdminFirestore();
 
     // Verificar token
     let decodedToken;
     try {
       decodedToken = await auth.verifyIdToken(idToken);
-    } catch {
+    } catch (error) {
+      console.error('[API] Erro ao verificar token:', error);
       return NextResponse.json({ success: false, error: 'Token inválido' }, { status: 401 });
     }
 
@@ -88,6 +69,7 @@ export async function POST(request: NextRequest) {
       let userRecord;
       try {
         userRecord = await auth.getUserByEmail(email);
+        console.log('[API] Usuário existente encontrado:', userRecord.uid);
 
         // Usuário existe - atualizar senha
         await auth.updateUser(userRecord.uid, {
@@ -111,30 +93,39 @@ export async function POST(request: NextRequest) {
           uid: userRecord.uid,
         });
 
-      } catch {
+      } catch (error) {
         // Usuário não existe - criar novo
-        userRecord = await auth.createUser({
-          email,
-          password,
-          displayName: nome,
-          emailVerified: true,
-        });
+        console.log('[API] Usuário não existe, criando novo...');
+        try {
+          userRecord = await auth.createUser({
+            email,
+            password,
+            displayName: nome,
+            emailVerified: true,
+          });
 
-        // Criar documento no Firestore
-        await db.collection('users').doc(userRecord.uid).set({
-          email,
-          nome,
-          role: 'admin',
-          tenantId,
-          ativo: true,
-          criadoEm: new Date(),
-        });
+          // Criar documento no Firestore
+          await db.collection('users').doc(userRecord.uid).set({
+            email,
+            nome,
+            role: 'admin',
+            tenantId,
+            ativo: true,
+            criadoEm: new Date(),
+          });
 
-        return NextResponse.json({
-          success: true,
-          message: 'Usuário criado com sucesso!',
-          uid: userRecord.uid,
-        });
+          return NextResponse.json({
+            success: true,
+            message: 'Usuário criado com sucesso!',
+            uid: userRecord.uid,
+          });
+        } catch (createError) {
+          console.error('[API] Erro ao criar usuário:', createError);
+          return NextResponse.json({
+            success: false,
+            error: `Erro ao criar usuário: ${createError instanceof Error ? createError.message : 'Erro desconhecido'}`,
+          }, { status: 500 });
+        }
       }
     }
 

@@ -1,45 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
-import { getAuth } from 'firebase-admin/auth';
-
-// Check if Firebase Admin credentials are configured
-function hasAdminCredentials(): boolean {
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY;
-  return !!(clientEmail && privateKey && privateKey !== '-----BEGIN PRIVATE KEY-----\nYOUR_PRIVATE_KEY_HERE\n-----END PRIVATE KEY-----\n');
-}
-
-// Initialize Firebase Admin if not already initialized
-function getFirebaseAdminApp(): App | null {
-  if (getApps().length > 0) {
-    return getApps()[0];
-  }
-
-  const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'gestao-pro-2e9ce';
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-
-  if (clientEmail && privateKey && !privateKey.includes('YOUR_PRIVATE_KEY_HERE')) {
-    // Use service account credentials
-    try {
-      return initializeApp({
-        credential: cert({
-          projectId,
-          clientEmail,
-          privateKey,
-        }),
-      });
-    } catch (error) {
-      console.error('Error initializing Firebase Admin with credentials:', error);
-      return null;
-    }
-  }
-
-  // No valid credentials available
-  console.warn('Firebase Admin credentials not configured. Set FIREBASE_CLIENT_EMAIL and FIREBASE_PRIVATE_KEY in .env');
-  return null;
-}
+import { getFirebaseAdminApp, hasAdminCredentials, getAdminAuth, getAdminFirestore } from '@/lib/firebase-admin';
 
 export async function POST(request: NextRequest) {
   try {
@@ -69,7 +29,7 @@ export async function POST(request: NextRequest) {
           details: `Para excluir empresas, você precisa configurar as credenciais do Firebase Admin SDK no arquivo .env:
 
 1. Acesse o Firebase Console (https://console.firebase.google.com)
-2. Selecione o projeto "${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'gestao-pro-2e9ce'}"
+2. Selecione o projeto
 3. Vá em Configurações > Contas de serviço
 4. Clique em "Gerar nova chave privada"
 5. Salve o arquivo JSON e extraia os valores:
@@ -97,8 +57,8 @@ Alternativamente, você pode atualizar as regras do Firestore para permitir excl
       );
     }
 
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+    const auth = getAdminAuth();
+    const db = getAdminFirestore();
 
     // Verify the ID token
     let decodedToken;
