@@ -36,8 +36,7 @@ import { useAuthStore } from '@/store/auth-store';
 import { useAppStore } from '@/store/app-store';
 import { useToast } from '@/hooks/use-toast';
 import { Tenant } from '@/types';
-import { createNewTenant, deleteTenantViaAPI } from '@/lib/admin-service';
-import { auth } from '@/lib/firebase';
+import { createNewTenant, deleteTenant } from '@/lib/admin-service';
 import {
   Shield,
   Building2,
@@ -344,20 +343,8 @@ export default function MasterAdminPage() {
     try {
       console.log('Excluindo empresa:', empresa.id, empresa.nome);
 
-      // Get the current user's ID token
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        throw new Error('Usuário não está autenticado');
-      }
-
-      const idToken = await currentUser.getIdToken();
-
-      // Call the API route to delete the tenant
-      const result = await deleteTenantViaAPI(empresa.id, idToken);
-
-      if (!result.success) {
-        throw new Error(result.error || 'Erro ao excluir empresa');
-      }
+      // Usar exclusão direta via Firestore (requer regras configuradas)
+      await deleteTenant(empresa.id);
 
       // Remover do estado local
       setTenants(tenants.filter(t => t.id !== empresa.id));

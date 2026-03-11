@@ -1,52 +1,68 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     // Função para verificar se o usuário está autenticado
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Função para verificar se é admin master
-    function isAdminMaster() {
-      return isAuthenticated() &&
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == 'admin-master';
+    // Função para obter dados do usuário atual
+    function getUserData() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data
+        : null;
     }
-    
+
+    // Função para verificar se é admin (role = admin)
+    function isAdmin() {
+      return isAuthenticated() && getUserData() != null && getUserData().role == 'admin';
+    }
+
+    // Função para verificar se é admin master (tenantId = admin-master OU admin-master)
+    function isAdminMaster() {
+      return isAuthenticated() && getUserData() != null &&
+        (getUserData().tenantId == 'admin-master' ||
+         getUserData().tenantId == 'admin-master' ||
+         (getUserData().role == 'admin' && getUserData().tenantId matches 'admin.*'));
+    }
+
     // Função para verificar se o usuário pertence ao tenant
     function belongsToTenant(tenantId) {
-      return isAuthenticated() &&
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId;
+      return isAuthenticated() && getUserData() != null && getUserData().tenantId == tenantId;
     }
-    
+
     // Usuários - apenas o próprio usuário pode ler/escrever seus dados
     // Admin Master também pode ler para verificar permissões
     match /users/{userId} {
-      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdminMaster());
-      allow write: if isAuthenticated() && request.auth.uid == userId;
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && request.auth.uid == userId;
+      allow delete: if isAdmin();
     }
-    
-    // Tenants - admin master tem acesso total, outros usuários apenas ao próprio tenant
+
+    // Tenants - admin tem acesso total, outros usuários apenas leitura
     match /tenants/{tenantId} {
       // Leitura: usuários autenticados podem ler
       allow read: if isAuthenticated();
-      
-      // Escrita/Criação/Exclusão: admin master tem acesso total
-      allow create, update, delete: if isAdminMaster();
-      
+
+      // Escrita/Criação: admin pode criar e atualizar
+      allow create, update: if isAdmin();
+
+      // Exclusão: apenas admin pode excluir
+      allow delete: if isAdmin();
+
       // Subcoleções do tenant (produtos, clientes, notasFiscais, etc.)
       match /{collection}/{docId} {
-        // Admin master pode tudo
-        allow read, write: if isAdminMaster();
+        // Admin pode tudo
+        allow read, write: if isAdmin();
         // Usuários do tenant podem acessar suas subcoleções
         allow read, write: if belongsToTenant(tenantId);
       }
     }
-    
-    // Coleção usuarios (legado/alternativa)
-    match /usuarios/{userId} {
+
+    // Coleção usuario (alternativa - alguns sistemas usam esta)
+    match /usuario/{userId} {
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
   }
