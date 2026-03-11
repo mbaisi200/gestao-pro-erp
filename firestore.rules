@@ -2,43 +2,52 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
+    // Função para verificar se o usuário está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
     // Função para verificar se é admin master
     function isAdminMaster() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == 'admin-master';
     }
     
     // Função para verificar se o usuário pertence ao tenant
     function belongsToTenant(tenantId) {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+      return isAuthenticated() &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId;
     }
     
     // Usuários - apenas o próprio usuário pode ler/escrever seus dados
+    // Admin Master também pode ler para verificar permissões
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdminMaster());
+      allow write: if isAuthenticated() && request.auth.uid == userId;
     }
     
     // Tenants - admin master tem acesso total, outros usuários apenas ao próprio tenant
     match /tenants/{tenantId} {
       // Leitura: usuários autenticados podem ler
-      allow read: if request.auth != null;
+      allow read: if isAuthenticated();
       
       // Escrita/Criação/Exclusão: admin master tem acesso total
-      allow create, update, delete: if request.auth != null && isAdminMaster();
+      allow create, update, delete: if isAdminMaster();
       
       // Subcoleções do tenant (produtos, clientes, notasFiscais, etc.)
       match /{collection}/{docId} {
         // Admin master pode tudo
-        allow read, write: if request.auth != null && isAdminMaster();
+        allow read, write: if isAdminMaster();
         // Usuários do tenant podem acessar suas subcoleções
-        allow read, write: if request.auth != null && belongsToTenant(tenantId);
+        allow read, write: if belongsToTenant(tenantId);
       }
     }
     
     // Coleção usuarios (legado/alternativa)
     match /usuarios/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
   }
 }
