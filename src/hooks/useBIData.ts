@@ -122,7 +122,13 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
 
   // Vendas concluídas
   const vendasConcluidas = useMemo(() => 
-    vendasFiltradas.filter(v => v.status === 'fechada' || v.status === 'finalizada' || v.status === 'concluida'),
+    vendasFiltradas.filter(v => 
+      v.status === 'fechada' || 
+      v.status === 'finalizada' || 
+      v.status === 'concluida' ||
+      v.status === 'entregue' ||
+      v.status === 'aprovado'
+    ),
     [vendasFiltradas]
   );
 
@@ -134,7 +140,13 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
 
   // Calcular KPIs
   const kpis = useMemo((): KPI[] => {
-    const vendasAnterioresConcluidas = vendasPeriodoAnterior.filter(v => v.status === 'fechada' || v.status === 'finalizada' || v.status === 'concluida');
+    const vendasAnterioresConcluidas = vendasPeriodoAnterior.filter(v => 
+      v.status === 'fechada' || 
+      v.status === 'finalizada' || 
+      v.status === 'concluida' ||
+      v.status === 'entregue' ||
+      v.status === 'aprovado'
+    );
     
     const totalVendasAnterior = vendasAnterioresConcluidas.reduce((acc, v) => acc + (v.total || 0), 0);
     const qtdVendas = vendasConcluidas.length;
@@ -182,7 +194,19 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
 
   // Vendas por forma de pagamento
   const vendasPorFormaPagamento = useMemo(() => {
-    const formasNomes: Record<string, string> = { dinheiro: 'Dinheiro', credito: 'Crédito', debito: 'Débito', pix: 'PIX', voucher: 'Voucher', cartao_credito: 'Crédito', cartao_debito: 'Débito' };
+    const formasNomes: Record<string, string> = { 
+      dinheiro: 'Dinheiro', 
+      credito: 'Crédito', 
+      debito: 'Débito', 
+      pix: 'PIX', 
+      voucher: 'Voucher', 
+      cartao_credito: 'Crédito', 
+      cartao_debito: 'Débito',
+      'crédito': 'Crédito',
+      'débito': 'Débito',
+      boleto: 'Boleto',
+      outros: 'Outros'
+    };
     
     const porForma = vendasConcluidas.reduce((acc, v) => {
       const forma = v.formaPagamento || 'outros';

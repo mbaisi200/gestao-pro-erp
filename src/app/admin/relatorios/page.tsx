@@ -28,32 +28,114 @@ function LoadingSkeleton() {
   );
 }
 
+// Normalizar forma de pagamento
+function normalizarFormaPagamento(forma: string): string {
+  if (!forma) return 'outros';
+  const formaLower = forma.toLowerCase();
+  
+  // Mapear variações
+  if (formaLower.includes('pix')) return 'pix';
+  if (formaLower.includes('crédito') || formaLower.includes('credito') || formaLower === 'cartao_credito') return 'cartao_credito';
+  if (formaLower.includes('débito') || formaLower.includes('debito') || formaLower === 'cartao_debito') return 'cartao_debito';
+  if (formaLower.includes('dinheiro')) return 'dinheiro';
+  if (formaLower.includes('boleto')) return 'boleto';
+  
+  return formaLower;
+}
+
+// Converter vendas do Firestore para formato do BI
+function converterVendasDoFirestore(vendas: any[]) {
+  return vendas.map(v => {
+    // Garantir que criadoEm seja um objeto Date
+    let criadoEm: Date;
+    if (v.dataVenda instanceof Date) {
+      criadoEm = v.dataVenda;
+    } else if (v.dataVenda?.toDate) {
+      criadoEm = v.dataVenda.toDate();
+    } else if (typeof v.dataVenda === 'string') {
+      criadoEm = new Date(v.dataVenda);
+    } else {
+      criadoEm = new Date();
+    }
+
+    return {
+      id: v.id,
+      total: v.total || 0,
+      status: v.status === 'concluida' ? 'finalizada' : v.status,
+      formaPagamento: normalizarFormaPagamento(v.formaPagamento || ''),
+      tipo: v.tipo || 'balcao',
+      tipoVenda: v.tipoVenda || 'balcao',
+      criadoEm,
+      criadoPorNome: v.criadoPorNome || v.vendedor || 'Sistema',
+      itens: v.itens?.map((i: any) => ({
+        produtoId: i.produtoId || i.id || '',
+        nome: i.nome || i.descricao || '',
+        preco: i.precoUnitario || i.preco || 0,
+        quantidade: i.quantidade || 1,
+        categoriaId: i.categoriaId || '',
+      })) || [],
+    };
+  });
+}
+
 // Converter pedidos para formato de vendas
 function converterPedidosParaVendas(pedidos: any[]) {
-  return pedidos.map(p => ({
-    id: p.id,
-    total: p.total,
-    status: p.status === 'entregue' ? 'finalizada' : p.status,
-    formaPagamento: p.formaPagamento || 'dinheiro',
-    tipo: 'balcao',
-    tipoVenda: 'balcao',
-    criadoEm: p.dataCriacao || p.data,
-    criadoPorNome: p.vendedor || 'Sistema',
-    itens: p.itens?.map((i: any) => ({
-      produtoId: i.produtoId || i.id,
-      nome: i.nome || i.descricao,
-      preco: i.precoUnitario || i.preco,
-      quantidade: i.quantidade,
-      categoriaId: i.categoriaId || '',
-    })) || [],
-  }));
+  return pedidos.map(p => {
+    // Garantir que criadoEm seja um objeto Date
+    let criadoEm: Date;
+    if (p.dataCriacao instanceof Date) {
+      criadoEm = p.dataCriacao;
+    } else if (p.dataCriacao?.toDate) {
+      criadoEm = p.dataCriacao.toDate();
+    } else if (typeof p.dataCriacao === 'string') {
+      criadoEm = new Date(p.dataCriacao);
+    } else if (p.data) {
+      criadoEm = new Date(p.data);
+    } else {
+      criadoEm = new Date();
+    }
+
+    return {
+      id: p.id,
+      total: p.total || 0,
+      status: p.status === 'entregue' ? 'finalizada' : p.status,
+      formaPagamento: normalizarFormaPagamento(p.formaPagamento || ''),
+      tipo: p.tipo || 'balcao',
+      tipoVenda: p.tipoVenda || 'balcao',
+      criadoEm,
+      criadoPorNome: p.criadoPorNome || p.vendedor || 'Sistema',
+      itens: p.itens?.map((i: any) => ({
+        produtoId: i.produtoId || i.id || '',
+        nome: i.nome || i.descricao || '',
+        preco: i.precoUnitario || i.preco || 0,
+        quantidade: i.quantidade || 1,
+        categoriaId: i.categoriaId || '',
+      })) || [],
+    };
+  });
 }
 
 export default function RelatoriosPage() {
-  const { produtos, categorias, pedidos } = useAppStore();
+  const { produtos, categorias, pedidos, vendas: vendasStore } = useAppStore();
   
-  // Converter dados para o formato esperado pelo useBIData
-  const vendas = useMemo(() => converterPedidosParaVendas(pedidos), [pedidos]);
+  // Combinar vendas do Firestore com pedidos convertidos
+  const vendas = useMemo(() => {
+    const vendasConvertidas = converterVendasDoFirestore(vendasStore);
+    const pedidosConvertidos = converterPedidosParaVendas(pedidos);
+    
+    // Combinar ambas as fontes e remover duplicatas pelo ID
+    const todasVendas = [...vendasConvertidas, ...pedidosConvertidos];
+    const vendasUnicas = todasVendas.filter((venda, index, self) =>
+      index === self.findIndex(v => v.id === venda.id)
+    );
+    
+    console.log('=== DADOS BI ===');
+    console.log('Vendas do Firestore:', vendasConvertidas.length);
+    console.log('Pedidos convertidos:', pedidosConvertidos.length);
+    console.log('Total único:', vendasUnicas.length);
+    
+    return vendasUnicas;
+  }, [vendasStore, pedidos]);
   
   const produtosFormatados = useMemo(() => produtos.map(p => ({
     id: p.id,
