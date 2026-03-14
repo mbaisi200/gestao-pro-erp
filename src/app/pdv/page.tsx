@@ -1,13 +1,11 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAppStore, Produto } from '@/store/app-store';
 import { useAuthStore } from '@/store/auth-store';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import {
@@ -18,13 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -42,6 +34,17 @@ import {
   Search,
   CheckCircle,
   X,
+  Clock,
+  UserPlus,
+  RefreshCw,
+  Percent,
+  History,
+  Barcode,
+  DollarSign,
+  TrendingUp,
+  Receipt,
+  Save,
+  Ban,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -53,28 +56,71 @@ interface ItemCarrinho {
   quantidade: number;
 }
 
+interface FormaPagamentoRegistro {
+  id: string;
+  tipo: string;
+  valor: number;
+}
+
+interface Cliente {
+  id: string;
+  nome: string;
+}
+
 export default function PDVPage() {
   const { user, logout } = useAuthStore();
-  const { produtos, categorias, addPedido } = useAppStore();
+  const { produtos, addPedido } = useAppStore();
   const router = useRouter();
   const { toast } = useToast();
 
   // Estados
-  const [categoriaAtiva, setCategoriaAtiva] = useState<string>('todos');
+  const [filtroAtivo, setFiltroAtivo] = useState<string>('Todos');
   const [search, setSearch] = useState('');
   const [carrinho, setCarrinho] = useState<ItemCarrinho[]>([]);
   const [dialogPagamento, setDialogPagamento] = useState(false);
   const [processando, setProcessando] = useState(false);
-  const [formaPagamento, setFormaPagamento] = useState<string>('');
   const [troco, setTroco] = useState<string>('');
   const [observacao, setObservacao] = useState('');
+  const [dataHora, setDataHora] = useState(new Date());
+  const [clienteSelecionado, setClienteSelecionado] = useState<Cliente | null>(null);
+  const [dialogCliente, setDialogCliente] = useState(false);
+  const [formasPagamentoRegistros, setFormasPagamentoRegistros] = useState<FormaPagamentoRegistro[]>([]);
+  const [formaPagamentoAtiva, setFormaPagamentoAtiva] = useState<string>('');
+  const [valorPagamento, setValorPagamento] = useState<string>('');
+  const [dialogDesconto, setDialogDesconto] = useState(false);
+  const [descontoPercentual, setDescontoPercentual] = useState<string>('0');
+  const [pendentes, setPendentes] = useState<ItemCarrinho[][]>([]);
+
+  // Atualizar data/hora
+  useEffect(() => {
+    const timer = setInterval(() => setDataHora(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Formatar data/hora
+  const formatarDataHora = (date: Date) => {
+    return date.toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).replace(',', '');
+  };
+
+  // Filtros disponíveis
+  const filtros = ['Todos', 'Serviços', 'Produtos', 'Histórico'];
 
   // Produtos filtrados
   const produtosFiltrados = useMemo(() => {
-    let lista = produtos.filter(p => p.ativo && p.tipo === 'produto');
-    if (categoriaAtiva !== 'todos') {
-      lista = lista.filter(p => p.categoriaId === categoriaAtiva);
+    let lista = produtos.filter(p => p.ativo);
+    
+    if (filtroAtivo === 'Produtos') {
+      lista = lista.filter(p => p.tipo === 'produto');
+    } else if (filtroAtivo === 'Serviços') {
+      lista = lista.filter(p => p.tipo === 'servico');
     }
+    
     if (search) {
       const searchLower = search.toLowerCase();
       lista = lista.filter(p => 
@@ -84,13 +130,43 @@ export default function PDVPage() {
       );
     }
     return lista;
-  }, [produtos, categoriaAtiva, search]);
+  }, [produtos, filtroAtivo, search]);
 
-  // Total do carrinho
-  const total = carrinho.reduce((acc, item) => acc + (item.preco * item.quantidade), 0);
+  // Top 10 mais vendidos (simulado - em produção viria do banco)
+  const top10MaisVendidos = useMemo(() => {
+    return produtos
+      .filter(p => p.ativo && p.tipo === 'produto')
+      .slice(0, 10)
+      .map(p => ({
+        nome: p.nome.length > 35 ? p.nome.substring(0, 35) + '...' : p.nome,
+        preco: p.precoVenda || 0,
+        produto: p
+      }));
+  }, [produtos]);
+
+  // Total de itens no carrinho
+  const totalItens = carrinho.reduce((acc, item) => acc + item.quantidade, 0);
+  
+  // Total de unidades diferentes
+  const totalUnidades = carrinho.length;
+
+  // Subtotal
+  const subtotal = carrinho.reduce((acc, item) => acc + (item.preco * item.quantidade), 0);
+  
+  // Desconto
+  const desconto = subtotal * (parseFloat(descontoPercentual) / 100);
+  
+  // Total
+  const total = subtotal - desconto;
+
+  // Total pago
+  const totalPago = formasPagamentoRegistros.reduce((acc, reg) => acc + reg.valor, 0);
+  
+  // Restante
+  const restante = total - totalPago;
 
   // Adicionar produto ao carrinho
-  const adicionarProduto = (produto: Produto) => {
+  const adicionarProduto = useCallback((produto: Produto) => {
     if (!produto.precoVenda || produto.precoVenda <= 0) {
       toast({ variant: 'destructive', title: 'Produto sem preço definido' });
       return;
@@ -115,7 +191,7 @@ export default function PDVPage() {
     }
 
     toast({ title: `✓ ${produto.nome} adicionado` });
-  };
+  }, [carrinho, toast]);
 
   // Alterar quantidade
   const alterarQuantidade = (itemId: string, delta: number) => {
@@ -141,7 +217,44 @@ export default function PDVPage() {
   // Limpar carrinho
   const limparCarrinho = () => {
     setCarrinho([]);
+    setFormasPagamentoRegistros([]);
+    setDescontoPercentual('0');
     setObservacao('');
+  };
+
+  // Adicionar forma de pagamento
+  const adicionarFormaPagamento = () => {
+    if (!formaPagamentoAtiva || !valorPagamento) return;
+    
+    const valor = parseFloat(valorPagamento);
+    if (isNaN(valor) || valor <= 0) {
+      toast({ variant: 'destructive', title: 'Valor inválido' });
+      return;
+    }
+
+    const novaForma: FormaPagamentoRegistro = {
+      id: Date.now().toString(),
+      tipo: formaPagamentoAtiva,
+      valor: valor,
+    };
+
+    setFormasPagamentoRegistros([...formasPagamentoRegistros, novaForma]);
+    setValorPagamento('');
+    setFormaPagamentoAtiva('');
+    
+    toast({ title: `✓ ${formaPagamentoAtiva} adicionado: R$ ${valor.toFixed(2)}` });
+  };
+
+  // Remover forma de pagamento
+  const removerFormaPagamento = (id: string) => {
+    setFormasPagamentoRegistros(formasPagamentoRegistros.filter(f => f.id !== id));
+  };
+
+  // Selecionar cliente balcão
+  const selecionarClienteBalcao = () => {
+    setClienteSelecionado({ id: 'balcao', nome: 'Cliente Balcão' });
+    setDialogCliente(false);
+    toast({ title: 'Cliente Balcão selecionado' });
   };
 
   // Finalizar venda
@@ -151,8 +264,8 @@ export default function PDVPage() {
       return;
     }
 
-    if (!formaPagamento) {
-      toast({ variant: 'destructive', title: 'Selecione a forma de pagamento' });
+    if (totalPago < total) {
+      toast({ variant: 'destructive', title: 'Valor pago insuficiente' });
       return;
     }
 
@@ -162,7 +275,7 @@ export default function PDVPage() {
         id: `pedido-${Date.now()}`,
         tenantId: '',
         numero: Date.now().toString().slice(-6),
-        nomeCliente: 'Cliente Balcão',
+        nomeCliente: clienteSelecionado?.nome || 'Cliente Balcão',
         itens: carrinho.map(item => ({
           id: item.id,
           produtoId: item.produtoId,
@@ -171,9 +284,9 @@ export default function PDVPage() {
           precoUnitario: item.preco,
           total: item.preco * item.quantidade,
         })),
-        subtotal: total,
+        subtotal,
         total,
-        formaPagamento,
+        formaPagamento: formasPagamentoRegistros.map(f => f.tipo).join(', '),
         status: 'entregue' as const,
         tipo: 'balcao' as const,
         observacao,
@@ -187,9 +300,11 @@ export default function PDVPage() {
       toast({ title: '✓ Venda finalizada com sucesso!' });
       setCarrinho([]);
       setDialogPagamento(false);
-      setFormaPagamento('');
-      setTroco('');
+      setFormasPagamentoRegistros([]);
+      setDescontoPercentual('0');
       setObservacao('');
+      setClienteSelecionado(null);
+      setTroco('');
     } catch (error) {
       console.error('Erro ao finalizar venda:', error);
       toast({ variant: 'destructive', title: 'Erro ao finalizar venda' });
@@ -198,15 +313,30 @@ export default function PDVPage() {
     }
   };
 
+  // Salvar pendente
+  const salvarPendente = () => {
+    if (carrinho.length === 0) {
+      toast({ variant: 'destructive', title: 'Carrinho vazio' });
+      return;
+    }
+    setPendentes([...pendentes, [...carrinho]]);
+    setCarrinho([]);
+    setFormasPagamentoRegistros([]);
+    toast({ title: `✓ Venda pendente salva (${pendentes.length + 1})` });
+  };
+
+  // Cancelar venda
+  const cancelarVenda = () => {
+    limparCarrinho();
+    setClienteSelecionado(null);
+    toast({ title: 'Venda cancelada' });
+  };
+
   // Logout
   const handleLogout = async () => {
     await logout();
     router.push('/');
   };
-
-  // Calcular troco
-  const valorRecebido = parseFloat(troco) || 0;
-  const valorTroco = valorRecebido > total ? valorRecebido - total : 0;
 
   // Busca por código de barras
   useEffect(() => {
@@ -224,29 +354,99 @@ export default function PDVPage() {
     }
   }, [search, produtos, adicionarProduto]);
 
+  // Atalhos de teclado
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F2' && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById('search-input')?.focus();
+      }
+      if (e.key === 'F4') {
+        e.preventDefault();
+        setDialogCliente(true);
+      }
+      if (e.key === 'F6') {
+        e.preventDefault();
+        setDialogDesconto(true);
+      }
+      if (e.key === 'F7') {
+        e.preventDefault();
+        // Histórico de compras
+        toast({ title: 'Histórico de compras' });
+      }
+      if (e.key === 'F8') {
+        e.preventDefault();
+        salvarPendente();
+      }
+      if (e.key === 'F12') {
+        e.preventDefault();
+        if (carrinho.length > 0) {
+          setDialogPagamento(true);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [carrinho]);
+
+  // Formas de pagamento
+  const formasPagamento = [
+    { id: 'Credito', nome: 'Crédito', icone: CreditCard, cor: 'bg-purple-500' },
+    { id: 'Debito', nome: 'Débito', icone: CreditCard, cor: 'bg-orange-500' },
+    { id: 'Pix', nome: 'Transf / Pix', icone: Smartphone, cor: 'bg-blue-500' },
+    { id: 'Dinheiro', nome: 'Dinheiro', icone: Banknote, cor: 'bg-green-500' },
+  ];
+
+  // Calcular troco
+  const valorRecebido = parseFloat(troco) || 0;
+  const valorTroco = valorRecebido > totalPago ? valorRecebido - totalPago : 0;
+
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-blue-50 to-indigo-50">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
       {/* HEADER */}
-      <header className="bg-white border-b border-blue-100 px-6 py-3 flex items-center justify-between shrink-0 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-sm">
-            {user?.nome?.charAt(0)}
+      <header className="bg-slate-800 border-b border-slate-700 px-4 py-2 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-6">
+          {/* Logo e Sistema */}
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white font-bold shadow-lg">
+              <Receipt className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-bold text-white text-lg tracking-wide">PDV Premium</p>
+              <p className="text-xs text-slate-400">Sistema de Ponto de Venda</p>
+            </div>
           </div>
-          <div>
-            <p className="font-bold text-gray-800 text-lg">{user?.nome}</p>
-            <p className="text-xs text-gray-500">Ponto de Venda</p>
-          </div>
+          
+          <Separator orientation="vertical" className="h-10 bg-slate-600" />
+          
+          {/* Status Venda */}
+          <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-4 py-1.5 text-sm font-bold tracking-wide">
+            VENDA
+          </Badge>
         </div>
         
-        <div className="flex items-center gap-3">
-          <Badge className="bg-blue-100 text-blue-700 px-4 py-2 text-sm font-bold shadow-sm">
-            Balcão
-          </Badge>
-
+        <div className="flex items-center gap-6">
+          {/* Data/Hora */}
+          <div className="flex items-center gap-2 text-slate-300">
+            <Clock className="h-4 w-4" />
+            <span className="font-mono text-sm">{formatarDataHora(dataHora)}</span>
+          </div>
+          
+          <Separator orientation="vertical" className="h-10 bg-slate-600" />
+          
+          {/* Usuário */}
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-lg">
+              {user?.nome?.charAt(0) || 'U'}
+            </div>
+            <span className="font-semibold text-white">{user?.nome || 'Usuário'}</span>
+          </div>
+          
           <Button 
             variant="destructive" 
             onClick={handleLogout} 
-            className="gap-2 bg-red-600 hover:bg-red-700 text-white font-bold shadow-sm"
+            className="gap-2 bg-red-600 hover:bg-red-700 text-white font-bold shadow-lg"
           >
             <LogOut className="h-4 w-4" />
             SAIR
@@ -254,195 +454,460 @@ export default function PDVPage() {
         </div>
       </header>
 
-      {/* CONTEÚDO PRINCIPAL */}
-      <div className="flex-1 flex overflow-hidden gap-4 p-4">
-        {/* COLUNA CENTRAL - PRODUTOS */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-white rounded-lg shadow-sm border border-blue-100">
-          {/* BUSCA - Movida para cima */}
-          <div className="p-4 border-b border-blue-100 bg-white shrink-0">
+      {/* CONTEÚDO PRINCIPAL - 3 COLUNAS */}
+      <div className="flex-1 flex overflow-hidden p-3 gap-3">
+        
+        {/* COLUNA ESQUERDA - BUSCA DE PRODUTOS */}
+        <div className="w-80 flex flex-col overflow-hidden bg-slate-800 rounded-xl border border-slate-700 shadow-xl">
+          {/* Header */}
+          <div className="bg-slate-700/50 border-b border-slate-600 px-4 py-3 shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Search className="h-5 w-5 text-emerald-400" />
+                <span className="font-bold text-white">Buscar Produto</span>
+              </div>
+              <Badge className="bg-slate-600 text-slate-300 text-xs font-mono">F2</Badge>
+            </div>
+          </div>
+          
+          {/* Input de busca */}
+          <div className="p-3 border-b border-slate-700 shrink-0">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Barcode className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
               <Input
-                placeholder="Buscar por nome ou código de barras..."
+                id="search-input"
+                placeholder="Buscar produto ou serviço..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="pl-10 border border-blue-200 focus:border-blue-500 rounded-lg font-semibold h-12 text-lg"
+                className="pl-10 bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-lg h-11"
                 autoFocus
               />
             </div>
           </div>
-
-          {/* CATEGORIAS - Com wrap para não atrapalhar */}
-          <div className="bg-blue-50 px-4 py-3 border-b border-blue-100 shrink-0">
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant={categoriaAtiva === 'todos' ? 'default' : 'outline'}
-                className={`font-bold whitespace-nowrap transition-all h-10 px-4 ${categoriaAtiva === 'todos' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-50'}`}
-                onClick={() => setCategoriaAtiva('todos')}
-              >
-                Todos
-              </Button>
-              {categorias.map(cat => (
+          
+          {/* Filtros */}
+          <div className="px-3 py-2 border-b border-slate-700 shrink-0">
+            <div className="flex gap-1.5">
+              {filtros.map((filtro) => (
                 <Button
-                  key={cat.id}
+                  key={filtro}
                   size="sm"
-                  variant={categoriaAtiva === cat.id ? 'default' : 'outline'}
-                  style={categoriaAtiva === cat.id ? { backgroundColor: cat.cor || '#3B82F6', color: 'white' } : { borderColor: cat.cor || '#3B82F6', color: cat.cor || '#3B82F6' }}
-                  className={`font-bold whitespace-nowrap transition-all h-10 px-4 ${categoriaAtiva === cat.id ? 'shadow-md' : 'bg-white hover:shadow-md'}`}
-                  onClick={() => setCategoriaAtiva(cat.id)}
+                  variant={filtroAtivo === filtro ? 'default' : 'ghost'}
+                  className={`flex-1 font-semibold text-xs h-8 ${
+                    filtroAtivo === filtro 
+                      ? 'bg-emerald-500 text-white hover:bg-emerald-600' 
+                      : 'text-slate-300 hover:text-white hover:bg-slate-700'
+                  }`}
+                  onClick={() => setFiltroAtivo(filtro)}
                 >
-                  {cat.nome}
+                  {filtro}
                 </Button>
               ))}
             </div>
           </div>
-
-          {/* GRID PRODUTOS - Com scroll */}
-          <div className="flex-1 overflow-y-auto p-4">
-            {produtosFiltrados.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                <Package className="h-20 w-20 mb-4 opacity-30" />
-                <p className="text-lg font-bold">Nenhum produto encontrado</p>
-                <p className="text-sm">Cadastre produtos no módulo de administração</p>
+          
+          {/* Top 10 Mais Vendidos */}
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <div className="px-4 py-2 border-b border-slate-700 bg-slate-700/30 shrink-0">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-amber-400" />
+                <span className="font-semibold text-slate-300 text-sm">Top 10 Mais Vendidos</span>
               </div>
-            ) : (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3">
-                {produtosFiltrados.map(produto => {
-                  const categoria = categorias.find(c => c.id === produto.categoriaId);
-                  const corCategoria = categoria?.cor || '#3B82F6';
-                  return (
-                    <button
-                      key={produto.id}
-                      className="group bg-white rounded-lg p-3 hover:shadow-md active:scale-95 transition-all border border-blue-100 hover:border-blue-300 overflow-hidden relative min-h-[120px]"
-                      onClick={() => adicionarProduto(produto)}
-                    >
-                      <div className="absolute inset-0 bg-blue-50 opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                      <div className="relative z-10 flex flex-col items-center text-center">
-                        <div
-                          className="h-12 w-12 rounded-lg flex items-center justify-center mb-2 shadow-md transition-transform group-hover:scale-110"
-                          style={{ backgroundColor: `${corCategoria}25` }}
-                        >
-                          <Package className="h-6 w-6" style={{ color: corCategoria }} />
-                        </div>
-                        <p className="text-xs font-bold line-clamp-2 text-gray-800 group-hover:text-blue-600 mb-1">{produto.nome}</p>
-                        <p className="text-sm font-extrabold text-green-600">
-                          R$ {(produto.precoVenda || 0).toFixed(2)}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
+            </div>
+            
+            <ScrollArea className="flex-1">
+              <div className="p-2 space-y-1.5">
+                {top10MaisVendidos.map((item, index) => (
+                  <button
+                    key={index}
+                    className="w-full flex items-center gap-3 p-2.5 rounded-lg bg-slate-700/50 hover:bg-slate-700 border border-slate-600 hover:border-emerald-500/50 transition-all text-left group"
+                    onClick={() => adicionarProduto(item.produto)}
+                  >
+                    <div className="h-7 w-7 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-xs shrink-0">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-200 truncate group-hover:text-emerald-400 transition-colors">
+                        {item.nome}
+                      </p>
+                      <p className="text-emerald-400 font-bold text-sm">
+                        R$ {item.preco.toFixed(2)}
+                      </p>
+                    </div>
+                  </button>
+                ))}
               </div>
-            )}
+            </ScrollArea>
+          </div>
+          
+          {/* Ações */}
+          <div className="p-3 border-t border-slate-700 bg-slate-700/30 shrink-0 space-y-2">
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3 bg-slate-700 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
+              onClick={() => toast({ title: 'Busca Avançada' })}
+            >
+              <Search className="h-4 w-4" />
+              <span className="flex-1 text-left">Busca Avançada</span>
+              <Badge className="bg-slate-600 text-slate-400 text-xs font-mono">Shift + F2</Badge>
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-3 bg-slate-700 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
+              onClick={() => toast({ title: 'Histórico de compras' })}
+            >
+              <History className="h-4 w-4" />
+              <span className="flex-1 text-left">Histórico de compras</span>
+              <Badge className="bg-slate-600 text-slate-400 text-xs font-mono">F7</Badge>
+            </Button>
           </div>
         </div>
 
-        {/* COLUNA DIREITA - CARRINHO */}
-        <div className="w-80 lg:w-96 bg-white rounded-lg shadow-sm border border-blue-100 flex flex-col overflow-hidden h-full">
-          {/* HEADER CARRINHO */}
-          <div className="bg-blue-50 border-b border-blue-100 px-4 py-3 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2">
-              <ShoppingCart className="h-5 w-5 text-blue-600" />
-              <span className="font-bold text-blue-700">Carrinho</span>
+        {/* COLUNA CENTRAL - CLIENTE E CARRINHO */}
+        <div className="flex-1 flex flex-col overflow-hidden bg-slate-800 rounded-xl border border-slate-700 shadow-xl">
+          {/* Seção Cliente */}
+          <div className="bg-slate-700/50 border-b border-slate-600 px-4 py-3 shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-full bg-slate-600 flex items-center justify-center">
+                  {clienteSelecionado ? (
+                    <User className="h-5 w-5 text-emerald-400" />
+                  ) : (
+                    <UserPlus className="h-5 w-5 text-slate-400" />
+                  )}
+                </div>
+                <div>
+                  <p className={`font-semibold ${clienteSelecionado ? 'text-emerald-400' : 'text-slate-400'}`}>
+                    {clienteSelecionado?.nome || 'Selecione um cliente'}
+                  </p>
+                  {clienteSelecionado && (
+                    <p className="text-xs text-slate-500">Cliente selecionado</p>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="bg-slate-700 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
+                  onClick={selecionarClienteBalcao}
+                >
+                  Cliente Balcão
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="bg-slate-700 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
+                  onClick={() => setDialogCliente(true)}
+                >
+                  <UserPlus className="h-4 w-4 mr-1" />
+                  Novo Cliente
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="bg-slate-700 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600 gap-1"
+                  onClick={() => setDialogCliente(true)}
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Trocar
+                  <Badge className="bg-slate-600 text-slate-400 text-xs font-mono ml-1">F4</Badge>
+                </Button>
+              </div>
             </div>
-            <Badge className="bg-blue-600 text-white font-bold">{carrinho.length} itens</Badge>
           </div>
-
-          {/* ITENS DO CARRINHO */}
-          <ScrollArea className="flex-1 p-3">
+          
+          {/* Header do Carrinho */}
+          <div className="bg-slate-700/30 border-b border-slate-700 px-4 py-2 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-3">
+              <ShoppingCart className="h-5 w-5 text-emerald-400" />
+              <span className="font-bold text-white">Carrinho</span>
+              {carrinho.length > 0 && (
+                <div className="flex gap-2">
+                  <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    {totalItens} itens
+                  </Badge>
+                  <Badge className="bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                    {totalUnidades} {totalUnidades === 1 ? 'unidade' : 'unidades'}
+                  </Badge>
+                </div>
+              )}
+            </div>
+            
+            {carrinho.length > 0 && (
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="bg-slate-700 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600 gap-1"
+                  onClick={() => setDialogDesconto(true)}
+                >
+                  <Percent className="h-4 w-4" />
+                  Desconto
+                  <Badge className="bg-slate-600 text-slate-400 text-xs font-mono ml-1">F6</Badge>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="bg-red-500/20 border-red-500/30 text-red-400 hover:bg-red-500/30 hover:text-red-300"
+                  onClick={limparCarrinho}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Limpar
+                </Button>
+              </div>
+            )}
+          </div>
+          
+          {/* Itens do Carrinho */}
+          <ScrollArea className="flex-1">
             {carrinho.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                <ShoppingCart className="h-16 w-16 mb-4 opacity-30" />
-                <p className="font-medium">Carrinho vazio</p>
-                <p className="text-sm">Adicione produtos clicando neles</p>
+              <div className="flex flex-col items-center justify-center h-full text-slate-500">
+                <ShoppingCart className="h-20 w-20 mb-4 opacity-30" />
+                <p className="font-semibold text-lg">Carrinho vazio</p>
+                <p className="text-sm">Selecione produtos para adicionar</p>
               </div>
             ) : (
-              <div className="space-y-2">
-                {carrinho.map((item) => (
-                  <div key={item.id} className="bg-white rounded-lg border border-gray-100 p-3 shadow-sm">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex-1">
-                        <p className="font-semibold text-gray-800 text-sm">{item.nome}</p>
-                        <p className="text-green-600 font-bold">R$ {item.preco.toFixed(2)}</p>
+              <div className="p-3 space-y-2">
+                {carrinho.map((item, index) => (
+                  <div key={item.id} className="bg-slate-700/50 rounded-lg border border-slate-600 p-3 hover:border-slate-500 transition-all">
+                    <div className="flex items-start gap-3">
+                      <div className="h-8 w-8 rounded-lg bg-slate-600 flex items-center justify-center text-slate-400 font-bold text-sm shrink-0">
+                        {index + 1}
                       </div>
+                      
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-slate-200 truncate">{item.nome}</p>
+                        <div className="flex items-center justify-between mt-2">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 w-7 p-0 rounded-full bg-slate-600 border-slate-500 text-slate-300 hover:bg-slate-500"
+                              onClick={() => alterarQuantidade(item.id, -1)}
+                            >
+                              <Minus className="h-3 w-3" />
+                            </Button>
+                            <span className="font-bold text-lg text-white w-8 text-center">{item.quantidade}</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 w-7 p-0 rounded-full bg-slate-600 border-slate-500 text-slate-300 hover:bg-slate-500"
+                              onClick={() => alterarQuantidade(item.id, 1)}
+                            >
+                              <Plus className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          
+                          <div className="text-right">
+                            <p className="text-slate-400 text-xs">R$ {item.preco.toFixed(2)} x {item.quantidade}</p>
+                            <p className="text-emerald-400 font-bold">
+                              R$ {(item.preco * item.quantidade).toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 w-8 p-0 text-red-500 hover:bg-red-50"
+                        className="h-8 w-8 p-0 text-red-400 hover:bg-red-500/20 hover:text-red-300"
                         onClick={() => removerItem(item.id)}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <X className="h-4 w-4" />
                       </Button>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 w-8 p-0 rounded-full"
-                          onClick={() => alterarQuantidade(item.id, -1)}
-                        >
-                          <Minus className="h-4 w-4" />
-                        </Button>
-                        <span className="font-bold text-lg w-8 text-center">{item.quantidade}</span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 w-8 p-0 rounded-full"
-                          onClick={() => alterarQuantidade(item.id, 1)}
-                        >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <span className="font-bold text-blue-600">
-                        R$ {(item.preco * item.quantidade).toFixed(2)}
-                      </span>
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </ScrollArea>
-
-          {/* RODAPÉ DO CARRINHO */}
-          <div className="border-t border-blue-100 p-4 bg-gray-50 space-y-3">
-            {/* Observação */}
-            <Textarea
-              placeholder="Observação do pedido..."
-              value={observacao}
-              onChange={(e) => setObservacao(e.target.value)}
-              className="h-16 text-sm resize-none"
-            />
-
-            {/* Total */}
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground font-medium">Total:</span>
-              <span className="text-3xl font-extrabold text-green-600">
-                R$ {total.toFixed(2)}
-              </span>
+          
+          {/* Observação */}
+          {carrinho.length > 0 && (
+            <div className="p-3 border-t border-slate-700 shrink-0">
+              <Textarea
+                placeholder="Observação do pedido..."
+                value={observacao}
+                onChange={(e) => setObservacao(e.target.value)}
+                className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-500 resize-none h-16"
+              />
             </div>
+          )}
+        </div>
 
-            {/* Botões */}
-            <div className="grid grid-cols-2 gap-2">
+        {/* COLUNA DIREITA - PAGAMENTO E RESUMO */}
+        <div className="w-96 flex flex-col overflow-hidden bg-slate-800 rounded-xl border border-slate-700 shadow-xl">
+          {/* Formas de Pagamento */}
+          <div className="bg-slate-700/50 border-b border-slate-600 px-4 py-3 shrink-0">
+            <div className="flex items-center gap-2 mb-3">
+              <DollarSign className="h-5 w-5 text-emerald-400" />
+              <span className="font-bold text-white">Forma de Pagamento</span>
+            </div>
+            
+            <div className="grid grid-cols-4 gap-2">
+              {formasPagamento.map((forma) => {
+                const Icone = forma.icone;
+                const isActive = formaPagamentoAtiva === forma.id;
+                return (
+                  <Button
+                    key={forma.id}
+                    size="sm"
+                    variant="outline"
+                    className={`flex flex-col h-auto py-2 px-1 ${
+                      isActive 
+                        ? `${forma.cor} border-transparent text-white` 
+                        : 'bg-slate-700 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600'
+                    }`}
+                    onClick={() => setFormaPagamentoAtiva(forma.id)}
+                  >
+                    <Icone className="h-4 w-4 mb-1" />
+                    <span className="text-xs font-semibold">{forma.nome}</span>
+                  </Button>
+                );
+              })}
+            </div>
+            
+            {formaPagamentoAtiva && (
+              <div className="mt-3 flex gap-2">
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="Valor"
+                  value={valorPagamento}
+                  onChange={(e) => setValorPagamento(e.target.value)}
+                  className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
+                />
+                <Button
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                  onClick={adicionarFormaPagamento}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+          
+          {/* Registros de Pagamento */}
+          {formasPagamentoRegistros.length > 0 && (
+            <div className="border-b border-slate-700 px-4 py-2 shrink-0">
+              <div className="space-y-1.5">
+                {formasPagamentoRegistros.map((registro) => {
+                  const forma = formasPagamento.find(f => f.id === registro.tipo);
+                  return (
+                    <div key={registro.id} className="flex items-center justify-between bg-slate-700/50 rounded-lg px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`h-6 w-6 rounded ${forma?.cor || 'bg-slate-600'} flex items-center justify-center`}>
+                          {forma && <forma.icone className="h-3 w-3 text-white" />}
+                        </div>
+                        <span className="text-slate-200 text-sm">{registro.tipo}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-emerald-400 font-bold">R$ {registro.valor.toFixed(2)}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-red-400 hover:bg-red-500/20"
+                          onClick={() => removerFormaPagamento(registro.id)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          
+          {/* Resumo Financeiro */}
+          <div className="flex-1 flex flex-col">
+            <div className="px-4 py-4 flex-1">
+              <div className="space-y-3">
+                {/* Subtotal */}
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Subtotal</span>
+                  <span className="text-slate-200 font-semibold">R$ {subtotal.toFixed(2)}</span>
+                </div>
+                
+                {/* Desconto */}
+                {parseFloat(descontoPercentual) > 0 && (
+                  <div className="flex items-center justify-between text-red-400">
+                    <span>Desconto ({descontoPercentual}%)</span>
+                    <span className="font-semibold">- R$ {desconto.toFixed(2)}</span>
+                  </div>
+                )}
+                
+                <Separator className="bg-slate-600" />
+                
+                {/* Total */}
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-300 font-semibold text-lg">Total</span>
+                  <span className="text-emerald-400 font-extrabold text-2xl">R$ {total.toFixed(2)}</span>
+                </div>
+                
+                <Separator className="bg-slate-600" />
+                
+                {/* Pago */}
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Pago</span>
+                  <span className="text-blue-400 font-semibold">R$ {totalPago.toFixed(2)}</span>
+                </div>
+                
+                {/* Restante */}
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Restante</span>
+                  <span className={`font-bold text-lg ${restante > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                    R$ {Math.abs(restante).toFixed(2)}
+                  </span>
+                </div>
+                
+                {/* Troco */}
+                {valorTroco > 0 && (
+                  <div className="bg-emerald-500/20 border border-emerald-500/30 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-emerald-400 font-semibold">Troco</span>
+                      <span className="text-emerald-400 font-extrabold text-xl">R$ {valorTroco.toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Botões de Ação */}
+            <div className="p-4 border-t border-slate-700 bg-slate-700/30 space-y-2 shrink-0">
               <Button
-                variant="outline"
-                className="h-12 font-bold"
-                onClick={limparCarrinho}
-                disabled={carrinho.length === 0}
-              >
-                <X className="mr-2 h-4 w-4" />
-                Limpar
-              </Button>
-              <Button
-                className="h-12 font-bold bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white"
+                className="w-full h-14 text-lg font-bold bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white shadow-lg"
                 onClick={() => setDialogPagamento(true)}
                 disabled={carrinho.length === 0}
               >
-                <CheckCircle className="mr-2 h-4 w-4" />
-                Finalizar
+                <CheckCircle className="mr-2 h-5 w-5" />
+                FINALIZAR VENDA
+                <Badge className="bg-white/20 text-white ml-2 font-mono">F12</Badge>
               </Button>
+              
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  className="h-11 font-semibold bg-slate-700 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
+                  onClick={salvarPendente}
+                  disabled={carrinho.length === 0}
+                >
+                  <Save className="mr-2 h-4 w-4" />
+                  Salvar Pendente
+                  <Badge className="bg-slate-600 text-slate-400 ml-1 text-xs font-mono">F8</Badge>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-11 font-semibold bg-red-500/20 border-red-500/30 text-red-400 hover:bg-red-500/30 hover:text-red-300"
+                  onClick={cancelarVenda}
+                  disabled={carrinho.length === 0}
+                >
+                  <Ban className="mr-2 h-4 w-4" />
+                  Cancelar
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -450,82 +915,185 @@ export default function PDVPage() {
 
       {/* Dialog Pagamento */}
       <Dialog open={dialogPagamento} onOpenChange={setDialogPagamento}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md bg-slate-800 border-slate-700 text-white">
           <DialogHeader>
-            <DialogTitle>Finalizar Venda</DialogTitle>
-            <DialogDescription>
-              Total: R$ {total.toFixed(2)}
+            <DialogTitle className="text-white">Finalizar Venda</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Confirme os dados para finalizar a venda
             </DialogDescription>
           </DialogHeader>
+          
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Forma de Pagamento</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  variant={formaPagamento === 'dinheiro' ? 'default' : 'outline'}
-                  className={formaPagamento === 'dinheiro' ? 'bg-green-500 hover:bg-green-600' : ''}
-                  onClick={() => setFormaPagamento('dinheiro')}
-                >
-                  <Banknote className="mr-2 h-4 w-4" />
-                  Dinheiro
-                </Button>
-                <Button
-                  variant={formaPagamento === 'pix' ? 'default' : 'outline'}
-                  className={formaPagamento === 'pix' ? 'bg-blue-500 hover:bg-blue-600' : ''}
-                  onClick={() => setFormaPagamento('pix')}
-                >
-                  <Smartphone className="mr-2 h-4 w-4" />
-                  PIX
-                </Button>
-                <Button
-                  variant={formaPagamento === 'credito' ? 'default' : 'outline'}
-                  className={formaPagamento === 'credito' ? 'bg-purple-500 hover:bg-purple-600' : ''}
-                  onClick={() => setFormaPagamento('credito')}
-                >
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Crédito
-                </Button>
-                <Button
-                  variant={formaPagamento === 'debito' ? 'default' : 'outline'}
-                  className={formaPagamento === 'debito' ? 'bg-orange-500 hover:bg-orange-600' : ''}
-                  onClick={() => setFormaPagamento('debito')}
-                >
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Débito
-                </Button>
+            <div className="bg-slate-700 rounded-lg p-4">
+              <div className="space-y-2">
+                <div className="flex justify-between text-slate-300">
+                  <span>Subtotal:</span>
+                  <span>R$ {subtotal.toFixed(2)}</span>
+                </div>
+                {parseFloat(descontoPercentual) > 0 && (
+                  <div className="flex justify-between text-red-400">
+                    <span>Desconto ({descontoPercentual}%):</span>
+                    <span>- R$ {desconto.toFixed(2)}</span>
+                  </div>
+                )}
+                <Separator className="bg-slate-600" />
+                <div className="flex justify-between text-emerald-400 font-bold text-xl">
+                  <span>Total:</span>
+                  <span>R$ {total.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-blue-400">
+                  <span>Pago:</span>
+                  <span>R$ {totalPago.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-amber-400">
+                  <span>Restante:</span>
+                  <span>R$ {restante.toFixed(2)}</span>
+                </div>
               </div>
             </div>
-
-            {formaPagamento === 'dinheiro' && (
+            
+            {restante > 0 && (
               <div className="space-y-2">
-                <Label htmlFor="troco">Valor Recebido</Label>
+                <Label className="text-slate-300">Valor adicional recebido</Label>
                 <Input
-                  id="troco"
                   type="number"
                   step="0.01"
                   placeholder="0,00"
                   value={troco}
                   onChange={(e) => setTroco(e.target.value)}
+                  className="bg-slate-700 border-slate-600 text-white"
                 />
                 {valorTroco > 0 && (
-                  <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                    <p className="text-sm text-green-700">Troco: <span className="font-bold">R$ {valorTroco.toFixed(2)}</span></p>
+                  <div className="p-3 bg-emerald-500/20 rounded-lg border border-emerald-500/30">
+                    <p className="text-emerald-400">Troco: <span className="font-bold">R$ {valorTroco.toFixed(2)}</span></p>
                   </div>
                 )}
               </div>
             )}
           </div>
+          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogPagamento(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => setDialogPagamento(false)}
+              className="bg-slate-700 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
+            >
               Cancelar
             </Button>
             <Button 
               onClick={finalizarVenda} 
-              disabled={processando || !formaPagamento}
-              className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+              disabled={processando || totalPago < total}
+              className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white"
             >
-              {processando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              {processando ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
               Confirmar Venda
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Cliente */}
+      <Dialog open={dialogCliente} onOpenChange={setDialogCliente}>
+        <DialogContent className="max-w-md bg-slate-800 border-slate-700 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white">Selecionar Cliente</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Escolha ou cadastre um cliente para esta venda
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <Input
+              placeholder="Buscar cliente..."
+              className="bg-slate-700 border-slate-600 text-white placeholder:text-slate-400"
+            />
+            
+            <div className="space-y-2">
+              <Button
+                variant="outline"
+                className="w-full justify-start bg-slate-700 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
+                onClick={selecionarClienteBalcao}
+              >
+                <User className="mr-2 h-4 w-4" />
+                Cliente Balcão
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full justify-start bg-slate-700 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
+              >
+                <UserPlus className="mr-2 h-4 w-4" />
+                Cadastrar Novo Cliente
+              </Button>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setDialogCliente(false)}
+              className="bg-slate-700 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
+            >
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Desconto */}
+      <Dialog open={dialogDesconto} onOpenChange={setDialogDesconto}>
+        <DialogContent className="max-w-sm bg-slate-800 border-slate-700 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-white">Aplicar Desconto</DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Informe o percentual de desconto
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                placeholder="0"
+                value={descontoPercentual}
+                onChange={(e) => setDescontoPercentual(e.target.value)}
+                className="bg-slate-700 border-slate-600 text-white text-center text-xl font-bold"
+              />
+              <span className="text-2xl text-slate-400">%</span>
+            </div>
+            
+            <div className="bg-slate-700 rounded-lg p-3">
+              <div className="flex justify-between text-slate-300 mb-1">
+                <span>Subtotal:</span>
+                <span>R$ {subtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-red-400 mb-1">
+                <span>Desconto:</span>
+                <span>- R$ {desconto.toFixed(2)}</span>
+              </div>
+              <Separator className="bg-slate-600 my-2" />
+              <div className="flex justify-between text-emerald-400 font-bold text-lg">
+                <span>Total:</span>
+                <span>R$ {total.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setDialogDesconto(false)}
+              className="bg-slate-700 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={() => setDialogDesconto(false)}
+              className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white"
+            >
+              Aplicar
             </Button>
           </DialogFooter>
         </DialogContent>
