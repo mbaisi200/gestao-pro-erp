@@ -77,20 +77,34 @@ export default function DashboardPage() {
     [pedidos]
   );
 
-  // Vendas do mês atual
-  const vendasMes = useMemo(() => 
-    vendas.filter(v => {
-      const dataVenda = new Date(v.dataVenda);
+  // Vendas do mês atual (incluindo vendas e pedidos entregues)
+  const vendasMes = useMemo(() => {
+    // Vendas do Firestore com status concluida
+    const vendasConcluidas = vendas.filter(v => {
+      const dataVenda = v.dataVenda instanceof Date ? v.dataVenda : new Date(v.dataVenda);
       return dataVenda >= inicioMes && dataVenda <= fimMes && v.status === 'concluida';
-    }),
-    [vendas, inicioMes, fimMes]
-  );
+    });
+    
+    // Pedidos com status entregue (vendas do PDV)
+    const pedidosEntregues = pedidos.filter(p => {
+      const dataPedido = p.dataCriacao instanceof Date ? p.dataCriacao : new Date(p.dataCriacao);
+      return dataPedido >= inicioMes && dataPedido <= fimMes && p.status === 'entregue';
+    });
+    
+    // Combinar e retornar total
+    const totalVendas = vendasConcluidas.reduce((acc, v) => acc + v.total, 0);
+    const totalPedidos = pedidosEntregues.reduce((acc, p) => acc + p.total, 0);
+    
+    return {
+      total: totalVendas + totalPedidos,
+      quantidade: vendasConcluidas.length + pedidosEntregues.length,
+      vendas: vendasConcluidas,
+      pedidos: pedidosEntregues
+    };
+  }, [vendas, pedidos, inicioMes, fimMes]);
 
-  // Receita do mês (baseada nas vendas concluídas)
-  const receitaMesCalculada = useMemo(() => 
-    vendasMes.reduce((acc, v) => acc + v.total, 0),
-    [vendasMes]
-  );
+  // Receita do mês (baseada nas vendas concluídas + pedidos entregues)
+  const receitaMesCalculada = vendasMes.total;
 
   // Despesa do mês (baseada nas contas pagas no período)
   const despesaMesCalculada = useMemo(() => {
@@ -157,7 +171,7 @@ export default function DashboardPage() {
           <DashboardCard
             title="Receita do Mês"
             value={new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(receitaMesCalculada)}
-            description={`${vendasMes.length} vendas no período`}
+            description={`${vendasMes.quantidade} vendas no período`}
             icon={DollarSign}
             gradient="from-emerald-500 to-green-600"
           />
@@ -364,7 +378,7 @@ export default function DashboardPage() {
                 <p className="text-2xl font-bold text-green-600 mt-1">
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(receitaMesCalculada)}
                 </p>
-                <p className="text-xs text-muted-foreground">{vendasMes.length} vendas</p>
+                <p className="text-xs text-muted-foreground">{vendasMes.quantidade} vendas</p>
               </div>
               <div className="p-4 rounded-lg border border-red-100 bg-red-50">
                 <p className="text-sm text-muted-foreground">Despesas</p>
